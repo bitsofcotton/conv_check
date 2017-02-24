@@ -13,5 +13,10 @@ This depends on huge intercepts on rank decreasing loop.
 Ax&lt;=b
 
 [-b,P][t,x']&lt;=0
+P is part of orthogonal matrix.
 
-[-b+1&epsilon;,P][t,x']&lt;=1&epsilon;
+[-b'+1&epsilon;,P][t,x'+b'']&lt;=1&epsilon;
+b' is orthogonal to P.
+
+After loop we get :
+P'[Q[t,x'']]&lt;=0
