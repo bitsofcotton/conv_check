@@ -20,3 +20,15 @@ b' is orthogonal to P.
 
 After loop we get :
 P'[Q[t,x'']]&lt;=0
+
+# Usage
+    #include "konbu_init.h"
+    ...
+    int m; // number of rows;
+    int n; // number of columns;
+    Mat A(m, n);
+    ...
+    Vec result;
+    bool* fix_partial[A.rows()];
+    LP<num_t, num_t> lp;
+    bool feas = lp.inner(fix_partial, result, A, b);
