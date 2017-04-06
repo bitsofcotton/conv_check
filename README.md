@@ -23,6 +23,7 @@ P'[Q[t,x'']]&lt;=0
 
 # Usage
     #include "konbu_init.h"
+    #include "konbu.h"
     ...
     int m; // number of rows;
     int n; // number of columns;
