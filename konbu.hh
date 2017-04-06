@@ -1,6 +1,6 @@
 /* You can use one of the both BSD 3-Clause License or GNU Lesser General Public License 3.0 for this source. */
 /* BSD 3-Clause License:
- * Copyright (c) 2013 - 2016, kazunobu watatsu.
+ * Copyright (c) 2013 - 2017, kazunobu watatsu.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -57,9 +57,9 @@ private:
   void normalizeCols(Vec& acr, T& bcr, Mat& A, Vec& b) const;
   T    errorCheck(const Mat& A, const Vec& b) const;
   
-  T    steps(bool* fix, bool* checked, Vec& rvec, const Mat& P, const Vec& b, const Vec& bdash, T normbb, const VecS& one) const;
-  bool gainVectors(bool& proper, bool* fix, bool* checked, Vec& rvec, const Mat& P, Vec b, const T& orignormbb, const VecS& one, const bool& only_check, int& n_fixed) const;
-  bool giantStep(bool* fix, bool* checked, MatS& Pverb, int& n_fixed, const VecS& one) const;
+  T    steps(bool* fix, bool* checked, Vec& rvec, const Mat& P, const Vec& b, const Vec& bdash, T normbb, VecS& one) const;
+  bool gainVectors(bool& proper, bool* fix, bool* checked, Vec& rvec, const Mat& P, Vec b, const T& orignormbb, VecS& one, const bool& only_check, int& n_fixed) const;
+  bool giantStep(bool* fix, bool* checked, MatS& Pverb, int& n_fixed, VecS& one) const;
   
   bool checkInner(const VecS& on, const int& max_idx) const;
   int  getMax(const bool* checked, const Vec& on) const;
@@ -285,8 +285,6 @@ template <typename T, typename S> bool LP<T,S>::optimizeNullSpace(bool* fix_part
   const T   normbb(internal::sqrt(bb.dot(bb)));
   bool*     checked = new bool[b.size()];
   VecS      one(b.size());
-  for(int i = 0; i < one.size(); i ++)
-    one[i] = S(1);
   
   int  n_fixed;
   bool proper = false;
@@ -441,7 +439,7 @@ template <typename T, typename S> T LP<T,S>::errorCheck(const Mat& A, const Vec&
   return (min / max) / internal::sqrt(err_error);
 }
 
-template <typename T, typename S> T LP<T,S>::steps(bool* fix, bool* checked, Vec& rvec, const Mat& P, const Vec& b, const Vec& bdash, T normbb, const VecS& one) const {
+template <typename T, typename S> T LP<T,S>::steps(bool* fix, bool* checked, Vec& rvec, const Mat& P, const Vec& b, const Vec& bdash, T normbb, VecS& one) const {
   normbb = normbb / internal::sqrt(bdash.dot(bdash));
   int   n_fixed;
   bool  proper = false, gained = false;
@@ -470,7 +468,7 @@ template <typename T, typename S> T LP<T,S>::steps(bool* fix, bool* checked, Vec
   return middle;
 }
 
-template <typename T, typename S> bool LP<T,S>::gainVectors(bool& proper, bool* fix, bool* checked, Vec& rvec, const Mat& P, Vec b, const T& orignormbb, const VecS& one, const bool& only_check, int& n_fixed) const
+template <typename T, typename S> bool LP<T,S>::gainVectors(bool& proper, bool* fix, bool* checked, Vec& rvec, const Mat& P, Vec b, const T& orignormbb, VecS& one, const bool& only_check, int& n_fixed) const
 {
 #if defined(_OPENMP)
 #pragma omp parallel
@@ -479,6 +477,7 @@ template <typename T, typename S> bool LP<T,S>::gainVectors(bool& proper, bool* 
   for(int i = 0; i < P.rows(); i ++) {
     fix[i]     = false;
     checked[i] = false;
+    one[i]     = S(1);
   }
   n_fixed = 0;
   
@@ -529,10 +528,10 @@ template <typename T, typename S> bool LP<T,S>::gainVectors(bool& proper, bool* 
   return proper || isErrorMargin(P, bb * (- work), testvec, false);
 }
 
-template <typename T, typename S> bool LP<T,S>::giantStep(bool* fix, bool* checked, MatS& Pverb, int& n_fixed, const VecS& one) const
+template <typename T, typename S> bool LP<T,S>::giantStep(bool* fix, bool* checked, MatS& Pverb, int& n_fixed, VecS& one) const
 {
+  VecS norm(one.size());
   for( ; n_fixed < Pverb.cols() - 1; n_fixed ++) {
-    VecS norm(one.size());
 #if defined(_OPENMP)
 #pragma omp parallel
 #pragma omp for
@@ -543,7 +542,7 @@ template <typename T, typename S> bool LP<T,S>::giantStep(bool* fix, bool* check
     }
     
     // O(mn^2) check for inner or not.
-    VecS on(Pverb * (Pverb.transpose() * (- one)));
+    VecS on(Pverb * (Pverb.transpose() * (- norm)));
     if(checkInner(on, getMax(checked, on.template cast<T>())))
       break;
     if(one.dot(on) > T(0))
@@ -572,6 +571,7 @@ template <typename T, typename S> bool LP<T,S>::giantStep(bool* fix, bool* check
     fix[max_idx] = Pverb.col(0).dot(Pverb.col(0)) <= err_norm(threshold_p0) ? - 1 : 1;
   }
   
+  one = VecS(norm);
   const VecS on(Pverb * (Pverb.transpose() * (- one)));
   return checkInner(on, getMax(checked, on.template cast<T>()));
 }
