@@ -68,26 +68,26 @@ private:
   
   T err_raw_epsilon;
   T err_singular;
-  T err_sway;
   T err_feas_step;
+  T err_fstep_max;
+  T err_opt;
   S threshold_feas;
   S threshold_p0;
   S threshold_inner;
-  T thresh_opt_r;
   T err_error;
 };
 
 template <typename T, typename S> LP<T,S>::LP()
 {
-  err_raw_epsilon   = NumTraits<T>::epsilon();
-  err_singular      = internal::sqrt(err_raw_epsilon);
-  threshold_feas    = internal::max(S(internal::sqrt(err_singular)), NumTraits<S>::epsilon());
-  threshold_p0      = threshold_feas;
-  err_feas_step     = internal::pow(err_raw_epsilon, T(1) / T(4));
-  threshold_inner   = T(0);
-  err_error         = internal::sqrt(threshold_feas);
-  err_sway          = err_error;
-  thresh_opt_r      = T(4);
+  err_raw_epsilon = NumTraits<T>::epsilon();
+  err_singular    = internal::sqrt(err_raw_epsilon);
+  threshold_feas  = internal::max(S(internal::sqrt(err_singular)), NumTraits<S>::epsilon());
+  threshold_p0    = threshold_feas;
+  err_feas_step   = internal::pow(err_raw_epsilon, T(1) / T(4));
+  err_fstep_max   = T(1000);
+  err_opt         = internal::sqrt(err_feas_step);
+  threshold_inner = T(0);
+  err_error       = internal::sqrt(threshold_feas);
   if(err_error >= T(1) - err_raw_epsilon)
     cerr << " accuracy not enough in initializing : " << err_error << endl;
   return;
@@ -304,12 +304,11 @@ template <typename T, typename S> bool LP<T,S>::optimizeNullSpace(bool* fix_part
 #pragma omp for
 #endif
   for(int i = cidx + 1; i < bdash.size(); i ++)
-    bdash[i] = internal::sqrt(P.row(i).dot(P.row(i))) / err_sway;
+    bdash[i] = internal::sqrt(P.row(i).dot(P.row(i)));
   fflush(stderr);
   
   if(P.row(cidx).dot(P.row(cidx)) <= T(0)) {
     const T t(steps(fix_partial, checked, rvec, P, b, bdash, normbb, one));
-    // const T t(normbb / err_feas_step);
     (void)gainVectors(proper, fix_partial, checked, rvec, P, b + bdash * t, normbb, one, false, n_fixed);
     delete[] checked;
     return isErrorMargin(P, b + bdash * t, rvec, true);
@@ -317,40 +316,36 @@ template <typename T, typename S> bool LP<T,S>::optimizeNullSpace(bool* fix_part
   
   // get optimal value.
   //  note: for this step, dynamic accuracy detecting will earn calculation time.
-  bool gained    = false;
-  bool feasible0 = false;
-  bool feasible  = false;
-  T    base(- err_raw_epsilon);
+  bool gained   = false;
+  bool feasible = false;
+  T    mid(normbb * err_opt);
+  T    step(pow(err_opt, - T(2)));
+  T    b_proper(mid / step);
   b[cidx] = T(0);
   const T t0(steps(fix_partial, checked, rvec, P, b, bdash, normbb, one));
-  if(gainVectors(proper, fix_partial, checked, rvec, P, b + bdash * t0, normbb, one, true, n_fixed) && proper)
-    feasible0 = true;
-  else
-    base      = - T(1) / base;
-  T mid(1), middle(0);
-  T step(T(1) / err_raw_epsilon / err_raw_epsilon);
-  step = step * step;
+  if(gainVectors(proper, fix_partial, checked, rvec, P, b + bdash * t0, normbb, one, true, n_fixed) && proper) {
+    feasible = true;
+    mid     *= - T(1);
+    b_proper = T(0);
+  }
   int n_steps = 2 + 2 * int(internal::log(- T(2) * internal::log(err_raw_epsilon) / internal::log(T(2))) / internal::log(T(2)));
   for(int i = 0; i <= n_steps; i ++) {
     step    = internal::sqrt(step);
-    if(feasible0)
-      b[cidx] = base * mid * step;
-    else
-      b[cidx] = base / (mid * step);
+    b[cidx] = mid * step;
     if(!isfinite(b[cidx]))
       continue;
     const T t(steps(fix_partial, checked, rvec, P, b, bdash, normbb, one));
     gained  = gainVectors(proper, fix_partial, checked, rvec, P, b + bdash * t, normbb, one, true, n_fixed);
     if(proper) {
       feasible = true;
-      middle   = b[cidx];
+      b_proper = b[cidx];
       mid     *= step;
     }
     cerr << (const char*)(proper ? "." : "!");
   }
   cerr << endl;
   
-  b[cidx] = (!feasible && feasible0 ? T(0) : middle);
+  b[cidx] = b_proper;
   const T t(steps(fix_partial, checked, rvec, P, b, bdash, normbb, one));
   (void)gainVectors(proper, fix_partial, checked, rvec, P, b + bdash * t, normbb, one, false, n_fixed);
   delete[] checked;
@@ -452,19 +447,17 @@ template <typename T, typename S> T LP<T,S>::errorCheck(const Mat& A, const Vec&
 }
 
 template <typename T, typename S> T LP<T,S>::steps(bool* fix, bool* checked, Vec& rvec, const Mat& P, const Vec& b, const Vec& bdash, T normbb, const VecS& one) const {
-  normbb = normbb / internal::sqrt(bdash.dot(bdash));
-  int   n_fixed;
-  bool  proper = false, gained = false;
-  const T upper(T(1) / (normbb * err_feas_step));
-  const T lower(err_feas_step / normbb);
-  T b_proper(upper);
-  T mid(1), middle;
-  T step(upper / lower);
-  step = step * step;
-  int n_steps = 2 + 2 * int(internal::log(- internal::log(err_raw_epsilon) / internal::log(T(2))) / internal::log(T(2)));
-  for(int i = 0; i <= n_steps; i ++) {
-    step   = internal::sqrt(step);
-    middle = upper / (mid * step);
+  const T normbd(internal::sqrt(bdash.dot(bdash)));
+  int  n_fixed;
+  bool proper = false;
+  bool gained = false;
+  T    mid(max(normbd, normbb / normbd) * err_feas_step * err_feas_step * std::max(T(P.rows()) * T(P.cols()), err_fstep_max));
+  T    step(pow(err_feas_step, - T(2)));
+  T    b_proper(mid);
+  int  n_steps = 2 + 2 * int(internal::log(- internal::log(err_raw_epsilon) / internal::log(T(2))) / internal::log(T(2)));
+  for(int i = 0; i < n_steps; i ++) {
+    step = internal::sqrt(step);
+    const T middle(mid * step);
     if(!isfinite(middle))
       cerr << "inf";
     gained = gainVectors(proper, fix, checked, rvec, P, b + bdash * middle, normbb, one, true, n_fixed);
@@ -474,10 +467,8 @@ template <typename T, typename S> T LP<T,S>::steps(bool* fix, bool* checked, Vec
     }
     cerr << (const char*)(proper ? "." : "!");
   }
-  if(!proper)
-    middle = b_proper;
   cerr << endl;
-  return middle;
+  return b_proper;
 }
 
 template <typename T, typename S> bool LP<T,S>::gainVectors(bool& proper, bool* fix, bool* checked, Vec& rvec, const Mat& P, Vec b, const T& orignormbb, const VecS& one, const bool& only_check, int& n_fixed) const
@@ -521,25 +512,23 @@ template <typename T, typename S> bool LP<T,S>::gainVectors(bool& proper, bool* 
     Pverb.col(i + 1) = P.col(i).template cast<S>();
   
   (void)giantStep(fix, checked, Pverb, n_fixed, one);
-  const Vec  rvec0((Pverb.transpose() * (- one)).template cast<T>());
+  const Vec rvec0((Pverb.transpose() * (- one)).template cast<T>());
   rvec = Pverb.template cast<T>() * rvec0;
   for(int i = 0; i < rvec.size(); i ++)
     if(checked[i])
       rvec[i] = T(0);
   
-  const T   work(- bb.dot(rvec));
-  const T   norm(internal::sqrt(rvec.dot(rvec)));
+  const bool proper0(isErrorMargin(Pverb, one * T(0), rvec0, false));
+  const T    work(- bb.dot(rvec));
+  const T    norm(internal::sqrt(rvec.dot(rvec)));
   rvec = P.transpose() * (rvec / work * normbb + b);
-
+  
   if(!only_check)
     cerr << " giantStep(" << normbb << "," << work / norm << ", " << norm << ")";
   // cerr << endl;
   
   proper = isErrorMargin(P, b, rvec, false);
-  Vec testvec(rvec0.size() - 1);
-  for(int i = 1; i < rvec0.size(); i ++)
-    testvec[i - 1] = rvec0[i];
-  return proper || isErrorMargin(P, bb * (- work), testvec, false);
+  return proper || proper0;
 }
 
 template <typename T, typename S> bool LP<T,S>::giantStep(bool* fix, bool* checked, MatS& Pverb, int& n_fixed, const VecS& one) const
@@ -559,15 +548,13 @@ template <typename T, typename S> bool LP<T,S>::giantStep(bool* fix, bool* check
     VecS on(Pverb * (Pverb.transpose() * (- one)));
     if(checkInner(on, getMax(checked, on.template cast<T>())))
       break;
-    if(one.dot(on) > T(0))
-      on = - on;
 #if defined(_OPENMP)
 #pragma omp for
 #endif
     for(int j = 0; j < on.size(); j ++)
       if(!checked[j])
         on[j] /= norm[j];
-    int max_idx = getMax(checked, on.template cast<T>());
+    const int max_idx = getMax(checked, on.template cast<T>());
     if(max_idx >= on.size()) {
       cerr << " GiantStep: no more direction.";
       break;
@@ -581,7 +568,7 @@ template <typename T, typename S> bool LP<T,S>::giantStep(bool* fix, bool* check
 #pragma omp for
 #endif
     for(int j = 0; j < Pverb.rows(); j ++)
-      Pverb.row(j) -= Pverb.row(j).dot(orth) * orth / norm2orth;
+      Pverb.row(j) -= (Pverb.row(j).dot(orth)) * orth / norm2orth;
     fix[max_idx] = Pverb.col(0).dot(Pverb.col(0)) <= err_norm(threshold_p0) ? - 1 : 1;
   }
   
