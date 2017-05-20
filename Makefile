@@ -21,8 +21,8 @@ LDFLAGS=	-lstdc++
 # normal use.
 #CXXFLAGS+=	-DACC_GMP -DBITS=24
 #CXXFLAGS+=	-DACC_GMP -DBITS=32
-CXXFLAGS+=	-DACC_DDOUBLE
-#CXXFLAGS+=	-DACC_LLDOUBLE
+CXXFLAGS+=	-DACC_DOUBLE
+#CXXFLAGS+=	-DACC_LDOUBLE
 
 # for hard problems like bandm or degen and so on.
 #CXXFLAGS+=	-DACC_GMP -DBITS=64

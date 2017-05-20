@@ -97,17 +97,13 @@ int main(int argc, char* argv[])
   while(num_t(1) + m_epsilon / num_t(2) != num_t(1))
     m_epsilon /= num_t(2);
   m_epsilon *= num_t(2);
-  m_epsilon_half = num_half_t(1);
-  while(num_half_t(1) + m_epsilon_half / num_half_t(2) != num_half_t(1))
-    m_epsilon_half /= num_half_t(2);
-  m_epsilon_half *= num_half_t(2);
   
   cerr << " PARSE";
   fflush(stdout);
   
   Vec  result;
   bool* fix_partial = new bool[A.rows()];
-  LP<num_t, num_t> lp;
+  LP<num_t> lp;
   bool feas = lp.inner(fix_partial, result, A, b);
   
   cout << result.transpose() << endl;
