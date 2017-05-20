@@ -31,5 +31,5 @@ P'[Q[t,x'']]&lt;=0
     ...
     Vec result;
     bool* fix_partial[A.rows()];
-    LP<num_t, num_t> lp;
+    LP<num_t> lp;
     bool feas = lp.inner(fix_partial, result, A, b);
