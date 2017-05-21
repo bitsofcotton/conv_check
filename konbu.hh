@@ -66,8 +66,6 @@ private:
   
   T err_raw_epsilon;
   T err_singular;
-  T err_feas_step;
-  T err_fstep_max;
   T err_opt;
   T threshold_feas;
   T threshold_p0;
@@ -80,16 +78,14 @@ private:
 template <typename T> LP<T>::LP()
 {
   err_raw_epsilon   = NumTraits<T>::epsilon();
-  err_singular      = internal::sqrt(err_raw_epsilon);
-  threshold_feas    = internal::sqrt(err_singular);
+  err_singular      = internal::pow(err_raw_epsilon, T(3) / T(4));
+  threshold_feas    = err_singular * T(4);
   threshold_p0      = threshold_feas;
   threshold_loop    = threshold_p0;
-  err_feas_step     = internal::pow(err_raw_epsilon, T(1) / T(4));
-  err_fstep_max     = T(1) / internal::sqrt(err_raw_epsilon);
-  err_opt           = internal::sqrt(err_feas_step);
+  err_opt           = internal::pow(threshold_loop, T(1) / T(32));
   threshold_inner   = threshold_loop * threshold_loop;
   err_error         = internal::sqrt(threshold_feas);
-  largest_intercept = T(1) / threshold_loop;
+  largest_intercept = T(1) / internal::sqrt(err_opt);
   if(err_error >= T(1) - err_raw_epsilon)
     cerr << " accuracy not enough in initializing : " << err_error << endl;
   return;
