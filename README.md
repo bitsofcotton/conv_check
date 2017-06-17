@@ -30,6 +30,6 @@ P'[Q[t,x'']]&lt;=0
     Mat A(m, n);
     ...
     Vec result;
-    bool* fix_partial[A.rows()];
+    bool fix_partial[A.rows()];
     LP<num_t> lp;
     bool feas = lp.inner(fix_partial, result, A, b);
