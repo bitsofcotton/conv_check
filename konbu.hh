@@ -61,11 +61,10 @@ private:
   
   bool checkInner(const Vec& on, const Vec& normalize, const int& max_idx) const;
   int  getMax(const bool* checked, const Vec& on, const Vec& normalize) const;
-
-  bool svdschur(const Mat& A, Mat& U, Vec& w, Mat& V) const;
   
+  Mat roughQR(const Mat& A) const;
+
   T err_raw_epsilon;
-  T err_singular;
   T err_opt;
   T threshold_feas;
   T threshold_p0;
@@ -78,8 +77,7 @@ private:
 template <typename T> LP<T>::LP()
 {
   err_raw_epsilon   = NumTraits<T>::epsilon();
-  err_singular      = internal::pow(err_raw_epsilon, T(3) / T(4));
-  threshold_feas    = err_singular * T(4);
+  threshold_feas    = internal::pow(err_raw_epsilon, T(3) / T(4)) * T(4);
   threshold_p0      = threshold_feas;
   threshold_loop    = threshold_p0;
   err_opt           = internal::pow(threshold_loop, T(1) / T(32));
@@ -236,21 +234,20 @@ template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const M
   cerr << " NORMALIZE";
   fflush(stderr);
   
-  // <c, x> -> obj, U w V^t x <= b.
+  // <c, x> -> obj, Q R x <= b.
   // O(mn * max(m, n))
-  Mat U;
-  Vec w;
-  Mat V;
-  if(!svdschur(AA, U, w, V))
-    return false;;
-  cerr << " SCHUR";
+  Mat Q(roughQR(AA));
+  cerr << " Q";
+  fflush(stderr);
+  Mat R(Q.transpose() * AA);
+  cerr << "R";
   fflush(stderr);
 
   // optimize <co_c, x'>, co_A [x' 0] <= b. co_A^t co_A = I, in O(mn^2L).
-  bool* bfix_partial = new bool[U.rows()];
-  for(int i = 0; i < U.rows(); i ++)
+  bool* bfix_partial = new bool[Q.rows()];
+  for(int i = 0; i < Q.rows(); i ++)
     bfix_partial[i] = false;
-  (void)optimizeNullSpace(bfix_partial, rvec, U, bb, A.rows());
+  (void)optimizeNullSpace(bfix_partial, rvec, Q, bb, A.rows());
   if(fix_partial)
     for(int i = 0; i < A.rows(); i ++)
       fix_partial[i] = bfix_partial[i];
@@ -260,13 +257,7 @@ template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const M
   fflush(stderr);
   
   // pull original solvee.
-  const T norm_w(internal::sqrt(w.dot(w)));
-  for(int i = 0, idx = 0; i < rvec.size(); i ++)
-    if(internal::abs(w[i]) <= norm_w * err_singular)
-      rvec[i]  = T(0);
-    else
-      rvec[i] /= w[i];
-  rvec = V * rvec * bcr;
+  rvec = R.inverse() * rvec * bcr;
   for(int i = 0; i < acr.size(); i ++)
     if(acr[i] != T(0))
       rvec[i] /= acr[i];
@@ -534,8 +525,7 @@ template <typename T> bool LP<T>::checkInner(const Vec& on, const Vec& normalize
   return max_idx < on.size() && on[max_idx] / normalize[max_idx] <= threshold_inner;
 }
 
-template <typename T> int LP<T>::getMax(const bool* checked, const Vec& on, const Vec& normalize) const
-{
+template <typename T> int LP<T>::getMax(const bool* checked, const Vec& on, const Vec& normalize) const {
   int result = 0;
   for(; result < on.size(); result ++)
     if(!checked[result])
@@ -561,31 +551,17 @@ template <typename T> bool LP<T>::isErrorMargin(const Mat& A, const Vec& b, cons
   // return result <= err_error;
 }
 
-template <typename T> bool LP<T>::svdschur(const Mat& A, Mat& U, Vec& w, Mat& V) const
-{
-  if(A.cols() > A.rows()) {
-    cerr << " svdschur : fatal error." << endl;
-    return false;
+template <typename T> Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> LP<T>::roughQR(const Mat& A) const {
+  Mat Q(A.rows(), A.cols());
+  for(int i = 0; i < A.cols(); i ++)
+    for(int j = 0; j < A.rows(); j ++)
+      Q(j, i) = T(0);
+  for(int i = 0; i < A.cols(); i ++) {
+    Vec work(A.col(i));
+    work -= Q * (Q.transpose() * work);
+    Q.col(i) = work / internal::sqrt(work.dot(work));
   }
-  Eigen::RealSchur<Mat> schur;
-  schur.compute(A.transpose() * A, true);
-  V = schur.matrixU();
-  U = A * V;
-  w = Vec(U.cols());
-#if defined(_OPENMP)
-#pragma omp parallel for
-#endif
-  for(int i = 0; i < U.cols(); i ++) {
-    w[i] = internal::sqrt(U.col(i).dot(U.col(i)));
-    if(w[i] <= internal::sqrt(err_singular)) {
-      w[i]      = T(0);
-      for(int j = 0; j < U.rows(); j ++)
-        U(j, i) = T(0);
-      cerr << "Z";
-    } else
-      U.col(i) /= w[i];
-  }
-  return true;
+  return Q;
 }
 
 #define _LINEAR_OPT_
