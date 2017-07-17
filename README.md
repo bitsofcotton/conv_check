@@ -12,6 +12,9 @@ This depends on huge intercepts on rank decreasing loop.
 # Bugs
 If the accuracy or parameter configuration is not valid for the problem to be solved, the feasibility that this program checks will bugly, If original problem is good scaled, it's hard to be happen, but, scaling in konbu.hh will destroys such condition even if good, so if you don't need scaling, please comment out the corresponding code.
 
+# Parameters
+We shall configure the parameters in LP<T>::LP() in konbu.hh. Description is in https://konbu.sakura.ne.jp/
+
 # Proof
 Ax&lt;=b
 
@@ -34,8 +37,7 @@ P'[Q[t,x'']]&lt;=0
     Vec result;
     bool fix_partial[A.rows()];
     LP<num_t> lp;
-    bool feas = lp.inner(fix_partial
-    result, A, b);
+    bool feas = lp.inner(fix_partial, result, A, b);
 
 # Makefile
-Please configure Makefile manually, there's -DACC_GMP=$bits option or -DDOUBLE option and so on, -DWITHOUT_EIGEN option, and compiler options such like -fopenmp, -pg, -I$where_eigen_lives, ...
+Please configure Makefile manually, there's -DACC_GMP=$bits option or -DACC_DOUBLE option and so on, -DWITHOUT_EIGEN option, and compiler options such like -fopenmp, -pg, -I$where_eigen_lives, ...
