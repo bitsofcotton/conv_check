@@ -23,7 +23,6 @@ P'[Q[t,x'']]&lt;=0
 
 # Usage
     #include "konbu_init.h"
-    #include "konbu.h"
     ...
     int m; // number of rows;
     int n; // number of columns;
@@ -32,4 +31,8 @@ P'[Q[t,x'']]&lt;=0
     Vec result;
     bool fix_partial[A.rows()];
     LP<num_t> lp;
-    bool feas = lp.inner(fix_partial, result, A, b);
+    bool feas = lp.inner(fix_partial
+    result, A, b);
+
+# Makefile
+Please configure Makefile manually, there's -DACC_GMP=$bits option or -DDOUBLE option and so on, -DWITHOUT_EIGEN option, and compiler options such like -fopenmp, -pg, -I$where_eigen_lives, ...
