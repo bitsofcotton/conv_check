@@ -3,33 +3,30 @@ CXX=	g++
 LD=	${CXX}
 
 # compiler flags.
-CXXFLAGS=	-I/usr/local/include
-CXXFLAGS+=	-O3 -mtune=core2
+CXXFLAGS+=	-I/usr/local/include/eigen3
+CXXFLAGS+=	-std=c++11
+CXXFLAGS+=	-O3 -mtune=native
 #CXXFLAGS+=	-g2 -O0 -Wall
-#CXXFLAGS+=	-fno-inline
 #CXXFLAGS+=	-fopenmp -pthread
+#CXXFLAGS+=	-pg
 LDFLAGS=	-lstdc++
 #LDFLAGS+=	-L/usr/local/lib -lmpfr -lgmp
 
 # test for tiny dimensions.
-#CXXFLAGS+=	-DACC_GMP -DBITS=14
-#CXXFLAGS+=	-DACC_GMP -DBITS=15
-#CXXFLAGS+=	-DACC_GMP -DBITS=16
-#CXXFLAGS+=	-DACC_GMP -DBITS=17
 #CXXFLAGS+=	-DACC_FLOAT
 
 # normal use.
-#CXXFLAGS+=	-DACC_GMP -DBITS=24
-#CXXFLAGS+=	-DACC_GMP -DBITS=32
 CXXFLAGS+=	-DACC_DOUBLE
 #CXXFLAGS+=	-DACC_LDOUBLE
 
-# for hard problems like bandm or degen and so on.
-#CXXFLAGS+=	-DACC_GMP -DBITS=64
-#CXXFLAGS+=	-DACC_GMP -DBITS=128
-#CXXFLAGS+=	-DACC_GMP -DBITS=160
-#CXXFLAGS+=	-DACC_GMP -DBITS=256
-#CXXFLAGS+=	-DACC_GMP -DBITS=512
+# for hard problems including netlib's small-sized problems with 0<=x condition.
+#CXXFLAGS+=	-DACC_GMP=256
+#CXXFLAGS+=	-DACC_GMP=512
+
+# Without eigen, do not use this because it costs dramatically long time.
+CXXFLAGS+=	-DWITHOUT_EIGEN
+
+CLEANFILES+=	konbu
 
 clean:
 	@rm -rf ${CLEANFILES}

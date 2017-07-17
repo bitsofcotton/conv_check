@@ -3,7 +3,6 @@
 #include "konbu_init.h"
 
 #define SZ_NUM_BUF 500
-#include "konbu.hh"
 
 int main(int argc, char* argv[])
 {
@@ -93,11 +92,6 @@ int main(int argc, char* argv[])
   }
   fclose(in);
   
-  m_epsilon = num_t(1);
-  while(num_t(1) + m_epsilon / num_t(2) != num_t(1))
-    m_epsilon /= num_t(2);
-  m_epsilon *= num_t(2);
-  
   cerr << " PARSE";
   fflush(stdout);
   
@@ -106,7 +100,9 @@ int main(int argc, char* argv[])
   LP<num_t> lp;
   bool feas = lp.inner(fix_partial, result, A, b);
   
-  cout << result.transpose() << endl;
+  for(int i = 0; i < result.size(); i ++)
+    cout << result[i] << ", ";
+  cout << endl;
   
   int n_fixed = 0;
   for(int i = 0; i < A.rows(); i ++)
