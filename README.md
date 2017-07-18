@@ -5,6 +5,9 @@ This program aims to check and gain the solvee from multiple set of linear const
 C++ is needed, and to calculate faster, Eigen library is needed, and to calculate more accurate, we may need a gmp library, a mpfr library and a real.hpp library.
 For older information, please refer http://sourceforge.net/projects/convcheck/ .
 
+# Tips
+If it is shown in stderr the string 'err_error?' or 'intercept?', accuracy should not enough.
+
 # Bugs
 If the accuracy or parameter configuration is not valid for the problem to be solved, the feasibility that this program checks will be bugly, If original problem is good scaled, it rarely happens.
 
