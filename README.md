@@ -2,11 +2,12 @@
 Get feasible point from multiple linear constraints.
 
 This program aims to check and gain the solvee from multiple set of linear constraints.
-C++ is needed, and to calculate faster, Eigen library is needed, and to calculate more accurate, we may need a gmp library, a mpfr library and a real.hpp library.
+C++ is needed, and to calculate faster, Eigen library is needed, and to calculate more accurate (in the most case we need), we may need a gmp library, a mpfr library and a real.hpp library.
 For older information, please refer http://sourceforge.net/projects/convcheck/ .
 
 # Tips
-If it is shown in stderr the string 'err_error?' or 'intercept?', accuracy should not enough.
+The shown string after 'err_error' or 'intercept' is the value depends on the problem and accuracy.
+If the value >> 0 (especially >= 1), it is hard to solve in the accuracy.
 
 # Bugs
 If the accuracy or parameter configuration is not valid for the problem to be solved, the feasibility that this program checks will be bugly, If original problem is good scaled, it rarely happens.
@@ -39,5 +40,5 @@ P'[Q[t,x'',0]]&lt;=0
     bool feas = lp.inner(fix_partial, result, A, b);
 
 # Makefile
-Please configure Makefile manually, there's -DACC_GMP=$bits option or -DACC_DOUBLE option and so on, -DWITHOUT_EIGEN option, and compiler options such like -fopenmp, -pg, -I$where_eigen_lives, ...
+Please configure Makefile manually, there's -DACC_GMP=$bits option or -DACC_DOUBLE option, -DWITHOUT_EIGEN option, and compiler options such like -fopenmp, -pg, -I$where_eigen_lives, ...
 
