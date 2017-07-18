@@ -431,13 +431,26 @@ template <typename T> SimpleVector<T> SimpleMatrix<T>::solve(SimpleVector<T> oth
   assert(0 <= erows && 0 <= ecols && erows == ecols && entity && erows == other.size());
   SimpleMatrix<T> work(*this);
   for(int i = 0; i < erows; i ++) {
+    const SimpleVector<T>& ei0(work.entity[i]);
+    int xchg = i;
+    for(int j = i + 1; j < erows; j ++)
+      if(abs(entity[j][i]) > abs(entity[xchg][i]))
+        xchg = j;
+    SimpleVector<T> buf(ei0);
+    T               buf2(other[i]);
+    work.entity[i]    = work.entity[xchg];
+    other[i]          = other[xchg];
+    work.entity[xchg] = buf;
+    other[xchg]       = buf2;
+    const SimpleVector<T>& ei(work.entity[i]);
+    const T&               eii(ei[i]);
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
     for(int j = i + 1; j < erows; j ++) {
-      const T ratio(work.entity[j][i] / work.entity[i][i]);
-      work.entity[j] -= work.entity[i] * ratio;
-      other[j]       -= other[i]       * ratio;
+      const T ratio(work.entity[j][i] / eii);
+      work.entity[j] -= ei       * ratio;
+      other[j]       -= other[i] * ratio;
     }
   }
   for(int i = erows - 1; 0 <= i; i --) {
@@ -494,10 +507,10 @@ private:
   
   T    errorCheck(const Mat& A, const Vec& b) const;
   
-  bool gainVectors(bool* fix, bool* checked, Vec& rvec, const Mat& P, const Vec& b, const Vec& one, int& n_fixed) const;
-  Vec  giantStep(bool* fix, bool* checked, Mat Pverb, Vec mb, int& n_fixed, const Vec& one, bool& obscure) const;
+  bool gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& P, Vec& b, const Vec& one, int& n_fixed) const;
+  Vec  giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const;
   bool checkInner(const Vec& on, const Vec& normalize, const int& max_idx) const;
-  int  getMax(const bool* checked, const Vec& on, const Vec& normalize) const;
+  int  getMax(const char* checked, const Vec& on, const Vec& normalize) const;
   
   Mat  roughQR(const Mat& A) const;
 
@@ -507,8 +520,9 @@ private:
   T threshold_loop;
   T threshold_inner;
   T err_error;
-  T ratio_intercept;
   T largest_intercept;
+  T largest_opt;
+  int n_opt_steps;
 };
 
 template <typename T> LP<T>::LP()
@@ -517,18 +531,16 @@ template <typename T> LP<T>::LP()
   while(T(1) + err_raw_epsilon != T(1)) err_raw_epsilon /= T(2);
   err_raw_epsilon  *= T(2);
   threshold_feas    = err_raw_epsilon * (- log(err_raw_epsilon) / log(2));
+  threshold_p0      = threshold_feas  * (- log(err_raw_epsilon) / log(2));
   threshold_p0      = sqrt(threshold_feas);
   threshold_inner   = pow(threshold_p0, T(1) / T(3));
   threshold_loop    = sqrt(threshold_p0 * threshold_inner);
   err_error         = sqrt(threshold_inner);
-  if(err_error >= T(1) - err_raw_epsilon)
-    cerr << " accuracy not enough in initializing : " << err_error << endl;
+  assert(err_error < T(1) - err_raw_epsilon);
   
-  // finite maximum 1/abs(cos(theta(x,a_k))) value depends on the problem.
-  // If this will larger, feasibility of the problem to solve increases,
-  // but if too large, gainVector loop fails because lack of accuracy b.
-  ratio_intercept   = T(3);
-  largest_intercept = pow(threshold_feas, - T(1) / T(4));
+  largest_intercept = - log(err_raw_epsilon) / log(2) / err_error;
+  largest_opt       = sqrt(largest_intercept);
+  n_opt_steps       = - int(log(err_error) / log(T(2)));
   return;
 }
 
@@ -596,17 +608,12 @@ template <typename T> bool LP<T>::inner(bool* fix_partial, Vec& rvec, const Mat&
 
 template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const Mat& A, const Vec& b, Vec c) const
 {
+  assert(A.cols() == c.size() && A.rows() == b.size() && 0 < c.size() && 0 < b.size());
   // cout << A << endl << b << endl << c.transpose() << endl;
   cerr << " (" << A.rows() << ", " << A.cols() << ")";
   rvec = Vec(c.size());
   for(int i = 0; i < A.rows(); i ++)
     if(fix_partial) fix_partial[i] = false;
-  if(A.cols() != c.size() || A.rows() != b.size() || c.size() <= 0 || b.size() <= 0) {
-    cerr << " Optimize: internal error (form does not match: Ax <= b, <c,x>.)" << endl;
-    for(int i = 0; i < rvec.size(); i ++)
-      rvec[i] = T(0);
-    return false;
-  }
   
   Mat AA(A.rows() + 1 + A.cols() * 2, A.cols());
   Vec bb(b.size() + 1 + A.cols() * 2);
@@ -640,14 +647,9 @@ template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const M
   }
   
   // guarantee that b is positive.
-  const T intercept(min(ratio_intercept * rbb, largest_intercept));
-  if(largest_intercept == intercept)
-    cerr << " intercept?(" << ratio_intercept * rbb / largest_intercept << ")";
-  for(int i = 0; i < A.cols() * 2; i ++) {
+  cerr << " intercept(" << rbb / largest_intercept << ")";
+  for(int i = 0; i < A.cols() * 2; i ++)
     AA(A.rows() + 1 + i, i / 2) = (i % 2 == 0 ? T(1) : - T(1));
-    bb[A.rows() + 1 + i] = intercept;
-  }
-  bb[A.rows()] = intercept;
   
   bool fflag = false;
   for(int i = 0; i < AA.rows() && !fflag; i ++) {
@@ -696,13 +698,10 @@ template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const M
 
 template <typename T> bool LP<T>::optimizeNullSpace(bool* fix_partial, Vec& rvec, const Mat& P, Vec& b, const int& cidx) const
 {
-  if(P.rows() != b.size() || P.cols() <= 0 || P.rows() < P.cols()) {
-    cerr << " NullSpace: internal error (form does not match: P[x 0] <= b, <c,x>.)" << endl;
-    return false;
-  }
+  assert(P.rows() == b.size() && 0 < P.cols() && P.cols() < P.rows());
   
   // to avoid stack underflow.
-  bool*   checked = new bool[b.size()];
+  char*   checked = new char[b.size()];
   Vec     one(b.size());
 #if defined(_OPENMP)
 #pragma omp parallel
@@ -719,13 +718,11 @@ template <typename T> bool LP<T>::optimizeNullSpace(bool* fix_partial, Vec& rvec
   }
   
   // get optimal value.
-  //  note: for this step, dynamic accuracy detecting will earn calculation time.
   T mid(1);
-  T offset(b[cidx]);
+  T offset(largest_opt);
   T step(offset * T(2));
   T b_proper(offset);
-  int n_steps = 2 + int(log(- T(2) * log(err_raw_epsilon) / log(T(2))) / log(T(2)));
-  for(int i = 0; i <= n_steps; i ++) {
+  for(int i = 0; i <= n_opt_steps; i ++) {
     b[cidx] = - step * mid + offset;
     if(!isfinite(b[cidx]))
       continue;
@@ -769,7 +766,7 @@ template <typename T> T LP<T>::errorCheck(const Mat& A, const Vec& b) const
   return (max / min) * sqrt(err_error);
 }
 
-template <typename T> bool LP<T>::gainVectors(bool* fix, bool* checked, Vec& rvec, const Mat& P, const Vec& b, const Vec& one, int& n_fixed) const
+template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& P, Vec& b, const Vec& one, int& n_fixed) const
 {
 #if defined(_OPENMP)
 #pragma omp parallel
@@ -779,7 +776,11 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, bool* checked, Vec& rve
     fix[i]     = false;
     checked[i] = false;
   }
-  n_fixed = 0;
+#if defined(_OPENMP)
+#pragma omp for
+#endif
+  for(int i = P.rows() - 2 * P.cols(); i < b.size(); i ++)
+    b[i] = largest_intercept;
   
   // set value, orthogonalize, and scale t.
   Vec bb(b - P * (P.transpose() * b));
@@ -799,12 +800,10 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, bool* checked, Vec& rve
     bb = bbb;
   }
   
-  bool obscure;
-  rvec = giantStep(fix, checked, P, - bb, n_fixed, one, obscure);
+  n_fixed = 0;
+  rvec = giantStep(fix, checked, P, - bb, n_fixed, one);
   fflush(stderr);
-  if(n_fixed < 0) {
-    return false;
-  } else if(n_fixed == P.cols()) {
+  if(n_fixed == P.cols()) {
     cerr << "F";
     Mat F(P.cols(), P.cols());
     Vec f(P.cols());
@@ -812,7 +811,7 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, bool* checked, Vec& rve
       if(fix[i]) {
         const T ratio(sqrt(P.row(i).dot(P.row(i))));
         F.row(j) = P.row(i) / ratio;
-        f[j]     = bb[i]    / ratio;
+        f[j]     = b[i]     / ratio;
         j ++;
       }
 #if defined(WITHOUT_EIGEN)
@@ -822,24 +821,25 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, bool* checked, Vec& rve
 #endif
   } else {
     cerr << "g";
-    rvec = P.transpose() * rvec / rvec.dot(- bb) * bb.dot(bb);
+    rvec = P.transpose() * (rvec / rvec.dot(- bb) * bb.dot(bb) + b);
   }
   fflush(stderr);
-  rvec += P.transpose() * b;
-  return isErrorMargin(P, b, rvec, false) && !obscure;
+  for(int i = 0; i < rvec.size(); i ++)
+    if(!isfinite(rvec[i]))
+      return false;
+  return isErrorMargin(P, b, rvec, false);
 }
 
 #if defined(WITHOUT_EIGEN)
-template <typename T> SimpleVector<T> LP<T>::giantStep(bool* fix, bool* checked, Mat Pverb, Vec mb, int& n_fixed, const Vec& one, bool& obscure) const
+template <typename T> SimpleVector<T> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const
 #else
-template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool* fix, bool* checked, Mat Pverb, Vec mb, int& n_fixed, const Vec& one, bool& obscure) const
+template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const
 #endif
 {
   Vec norm(one.size());
   Vec deltab(one.size());
   Vec on(one.size());
   T   ratiob(1);
-  obscure = false;
 #if defined(_OPENMP)
 #pragma omp parallel
 #pragma omp for
@@ -850,25 +850,20 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
     on[i]     = T(0);
   }
   for( ; n_fixed < Pverb.cols(); n_fixed ++) {
-    // XXX : we should re-implement around mb with accuracy.
-    mb     += deltab;
-    deltab  = Pverb * (Pverb.transpose() * mb);
-    mb     -= deltab;
-    const T   buf(sqrt(mb.dot(mb)));
-    ratiob *= buf;
-    mb     /= buf;
+    Vec mb(mbb);
+    const T normmb(sqrt(mb.dot(mb)));
 #if defined(_OPENMP)
 #pragma omp parallel
 #pragma omp for
 #endif
     for(int j = 0; j < Pverb.rows(); j ++) {
       norm[j]     = sqrt(Pverb.row(j).dot(Pverb.row(j)));
-      checked[j] |= norm[j] <= threshold_p0;
+      checked[j]  = norm[j] <= threshold_p0;
     }
-    if(abs(norm.dot(norm) - T(1)) <= threshold_p0) {
-      cerr << "?";
-      obscure = true;
-    }
+    deltab  = Pverb * (Pverb.transpose() * mb);
+    mb     -= deltab;
+    ratiob  = sqrt(mb.dot(mb));
+    mb     /= ratiob;
     norm   /= sqrt(norm.dot(norm));
     
     // O(mn^2) check for inner or not.
@@ -878,18 +873,44 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
     if(max_idx >= one.size()) {
       cerr << " GiantStep: no more direction.";
       break;
-    } else if(checkInner(on, norm, max_idx))
+    } else if(checkInner(on, norm, max_idx)) {
+      n_fixed --;
       break;
+    }
     
     // O(mn^2) over all in this function.
-    // this makes some error after some steps.
 #if defined(WITHOUT_EIGEN)
-    const Vec orth(Pverb.row(max_idx));
+    Vec orth(Pverb.row(max_idx));
 #else
-    const Vec orth(Pverb.row(max_idx).transpose());
+    Vec orth(Pverb.row(max_idx).transpose());
 #endif
-    const T   norm2orth(orth.dot(orth));
-    const T   mb0(mb[max_idx]);
+    T   norm2orth(orth.dot(orth));
+    int fidx(max_idx);
+    checked[max_idx] = - 1;
+    // parallel vectors we didn't scanned.
+    bool flag = false;
+#if defined(_OPENMP)
+#pragma omp for
+#endif
+    for(int j = 0; j < Pverb.rows(); j ++) if(!checked[j]) {
+      const T work(Pverb.row(j).dot(orth));
+      const T work2(Pverb.row(j).dot(Pverb.row(j)));
+      if(work >= sqrt(work2 * norm2orth) *
+                 (T(1) - threshold_p0) &&
+         mbb[fidx] / sqrt(norm2orth) < mbb[j] / sqrt(work2)) {
+#if defined(WITHOUT_EIGEN)
+        orth       = Pverb.row(j);
+#else
+        orth       = Pverb.row(j).transpose();
+#endif
+        norm2orth  = work2;
+        fidx       = j;
+        checked[j] = - 1;
+        flag = true;
+      }
+    }
+    if(flag) cerr << "X";
+    const T mb0(mbb[fidx]);
 #if defined(_OPENMP)
 #pragma omp for
 #endif
@@ -900,9 +921,12 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
 #else
       Pverb.row(j) -= work * orth.transpose();
 #endif
-      mb[j]        -= mb0  * work;
+      if(checked[j] < 0)
+        mbb[j]      = mb0  * sqrt(Pverb.row(j).dot(Pverb.row(j)) / norm2orth);
+      else
+        mbb[j]     -= mb0  * work;
     }
-    fix[max_idx] = 1;
+    fix[fidx] = 1;
   }
   return on * ratiob + deltab;
 }
@@ -912,7 +936,7 @@ template <typename T> bool LP<T>::checkInner(const Vec& on, const Vec& normalize
   return max_idx < on.size() && on[max_idx] / normalize[max_idx] <= threshold_inner;
 }
 
-template <typename T> int LP<T>::getMax(const bool* checked, const Vec& on, const Vec& normalize) const {
+template <typename T> int LP<T>::getMax(const char* checked, const Vec& on, const Vec& normalize) const {
   int result = 0;
   for(; result < on.size(); result ++)
     if(!checked[result])
