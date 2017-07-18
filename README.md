@@ -2,18 +2,14 @@
 Get feasible point from multiple linear constraints.
 
 This program aims to check and gain the solvee from multiple set of linear constraints.
-C++ and Eigen library needed, and to calculate more accurate, we may need a gmp library, a mpfr library and a real.hpp library.
-For older information, please refer http://sourceforge.net/projects/convcheck/
-
-# Tips
-In steps function, we cannot get inner point when the ratio of diameter are large or inner points are far enough from origin point.
-This depends on huge intercepts on rank decreasing loop.
+C++ is needed, and to calculate faster, Eigen library is needed, and to calculate more accurate, we may need a gmp library, a mpfr library and a real.hpp library.
+For older information, please refer http://sourceforge.net/projects/convcheck/ .
 
 # Bugs
-If the accuracy or parameter configuration is not valid for the problem to be solved, the feasibility that this program checks will bugly, If original problem is good scaled, it's hard to be happen, but, scaling in konbu.hh will destroys such condition even if good, so if you don't need scaling, please comment out the corresponding code.
+If the accuracy or parameter configuration is not valid for the problem to be solved, the feasibility that this program checks will be bugly, If original problem is good scaled, it rarely happens.
 
 # Parameters
-We shall configure the parameters in LP<T>::LP() in konbu.hh. Description is in https://konbu.sakura.ne.jp/
+We shall configure the parameters in LP<T>::LP() in konbu.hh. Description is in https://konbu.sakura.ne.jp/ .
 
 # Proof
 Ax&lt;=b
@@ -25,7 +21,7 @@ P is part of orthogonal matrix.
 b' is orthogonal to P.
 
 After loop we get :
-P'[Q[t,x'']]&lt;=0
+P'[Q[t,x'',0]]&lt;=0
 
 # Usage
     #include "konbu_init.h"
@@ -41,3 +37,4 @@ P'[Q[t,x'']]&lt;=0
 
 # Makefile
 Please configure Makefile manually, there's -DACC_GMP=$bits option or -DACC_DOUBLE option and so on, -DWITHOUT_EIGEN option, and compiler options such like -fopenmp, -pg, -I$where_eigen_lives, ...
+
