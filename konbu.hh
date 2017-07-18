@@ -431,12 +431,11 @@ template <typename T> SimpleVector<T> SimpleMatrix<T>::solve(SimpleVector<T> oth
   assert(0 <= erows && 0 <= ecols && erows == ecols && entity && erows == other.size());
   SimpleMatrix<T> work(*this);
   for(int i = 0; i < erows; i ++) {
-    const SimpleVector<T>& ei0(work.entity[i]);
     int xchg = i;
     for(int j = i + 1; j < erows; j ++)
-      if(abs(entity[j][i]) > abs(entity[xchg][i]))
+      if(abs(work.entity[j][i]) > abs(work.entity[xchg][i]))
         xchg = j;
-    SimpleVector<T> buf(ei0);
+    SimpleVector<T> buf(work.entity[i]);
     T               buf2(other[i]);
     work.entity[i]    = work.entity[xchg];
     other[i]          = other[xchg];
@@ -507,7 +506,7 @@ private:
   
   T    errorCheck(const Mat& A, const Vec& b) const;
   
-  bool gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& P, Vec& b, const Vec& one, int& n_fixed) const;
+  bool gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& P, const Vec& b, const Vec& one, int& n_fixed) const;
   Vec  giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const;
   bool checkInner(const Vec& on, const Vec& normalize, const int& max_idx) const;
   int  getMax(const char* checked, const Vec& on, const Vec& normalize) const;
@@ -648,8 +647,10 @@ template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const M
   
   // guarantee that b is positive.
   cerr << " intercept(" << rbb / largest_intercept << ")";
-  for(int i = 0; i < A.cols() * 2; i ++)
+  for(int i = 0; i < A.cols() * 2; i ++) {
     AA(A.rows() + 1 + i, i / 2) = (i % 2 == 0 ? T(1) : - T(1));
+    bb[A.rows() + 1 + i]        = largest_intercept;
+  }
   
   bool fflag = false;
   for(int i = 0; i < AA.rows() && !fflag; i ++) {
@@ -766,7 +767,7 @@ template <typename T> T LP<T>::errorCheck(const Mat& A, const Vec& b) const
   return (max / min) * sqrt(err_error);
 }
 
-template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& P, Vec& b, const Vec& one, int& n_fixed) const
+template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& P, const Vec& b, const Vec& one, int& n_fixed) const
 {
 #if defined(_OPENMP)
 #pragma omp parallel
@@ -776,11 +777,6 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
     fix[i]     = false;
     checked[i] = false;
   }
-#if defined(_OPENMP)
-#pragma omp for
-#endif
-  for(int i = P.rows() - 2 * P.cols(); i < b.size(); i ++)
-    b[i] = largest_intercept;
   
   // set value, orthogonalize, and scale t.
   Vec bb(b - P * (P.transpose() * b));
@@ -851,7 +847,6 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
   }
   for( ; n_fixed < Pverb.cols(); n_fixed ++) {
     Vec mb(mbb);
-    const T normmb(sqrt(mb.dot(mb)));
 #if defined(_OPENMP)
 #pragma omp parallel
 #pragma omp for
