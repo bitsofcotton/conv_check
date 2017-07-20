@@ -50,6 +50,7 @@ public:
         T&               operator [] (const int& idx);
   const T                operator [] (const int& idx) const;
   const int& size() const;
+        void resize(const int& size);
 private:
   T*  entity;
   int esize;
@@ -188,6 +189,18 @@ template <typename T> const int& SimpleVector<T>::size() const {
   return esize;
 }
 
+template <typename T> void SimpleVector<T>::resize(const int& size) {
+  assert(size > 0);
+  if(size != esize) {
+    esize = size;
+    if(entity)
+      delete[] entity;
+    entity = new T[esize];
+  }
+  return;
+}
+
+
 template <typename T> class SimpleMatrix {
 public:
   SimpleMatrix();
@@ -216,8 +229,10 @@ public:
         void             setCol(const int& x, const SimpleVector<T>& other);
         SimpleMatrix<T>  transpose() const;
         SimpleVector<T>  solve(SimpleVector<T> other) const;
+        SimpleVector<T>  projectionPt(const SimpleVector<T>& other) const;
   const int& rows() const;
   const int& cols() const;
+        void resize(const int& rows, const int& cols);
 private:
   SimpleVector<T>* entity;
   int              erows;
@@ -231,7 +246,7 @@ template <typename T> SimpleMatrix<T>::SimpleMatrix(const int& rows, const int& 
 #pragma omp parallel for
 #endif
   for(int i = 0; i < rows; i ++)
-    entity[i] = SimpleVector<T>(cols);
+    entity[i].resize(cols);
   erows = rows;
   ecols = cols;
   return; 
@@ -360,7 +375,7 @@ template <typename T> SimpleMatrix<T>& SimpleMatrix<T>::operator = (const Simple
 #pragma omp parallel for
 #endif
     for(int i = 0; i < other.erows; i ++)
-      entity[i] = SimpleVector<T>(other.ecols);
+      entity[i].resize(other.ecols);
   }
   erows = other.erows;
   ecols = other.ecols;
@@ -463,12 +478,55 @@ template <typename T> SimpleVector<T> SimpleMatrix<T>::solve(SimpleVector<T> oth
   return other;
 }
 
+template <typename T> SimpleVector<T> SimpleMatrix<T>::projectionPt(const SimpleVector<T>& other) const {
+  assert(0 < erows && 0 < ecols && ecols == other.size());
+  SimpleVector<T> res(ecols);
+#if defined(_OPENMP)
+#pragma omp parallel
+#pragma omp for
+#endif
+  for(int i = 0; i < res.size(); i ++)
+    res[i] = T(0);
+  SimpleMatrix<T> work(erows, ecols);
+#if defined(_OPENMP)
+#pragma omp for
+#endif
+  for(int i = 0; i < work.rows(); i ++)
+    work.row(i) = entity[i] * entity[i].dot(other);
+#if defined(_OPENMP)
+#pragma omp for
+#endif
+  for(int i = 0; i < other.size(); i ++)
+    for(int j = 0; j < erows; j ++)
+      res[i] += work(j, i);
+  return res;
+}
+
 template <typename T> const int& SimpleMatrix<T>::rows() const {
   return erows;
 }
 
 template <typename T> const int& SimpleMatrix<T>::cols() const {
   return ecols;
+}
+
+template <typename T> void SimpleMatrix<T>::resize(const int& rows, const int& cols) {
+  assert(rows > 0 && cols > 0);
+  if(rows != erows) {
+    erows = rows;
+    if(entity)
+      delete[] entity;
+    entity = new SimpleVector<T>[erows];
+  }
+  if(cols != ecols) {
+    ecols = cols;
+#if defined(_OPENMP)
+#pragma omp parallel for
+#endif
+    for(int i = 0; i < erows; i ++)
+      entity[i].resize(ecols);
+  }
+  return;
 }
 
 
@@ -506,7 +564,7 @@ private:
   
   T    errorCheck(const Mat& A, const Vec& b) const;
   
-  bool gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& P, const Vec& b, const Vec& one, int& n_fixed) const;
+  bool gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& Pt, const Vec& b, const Vec& one, int& n_fixed) const;
   Vec  giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const;
   bool checkInner(const Vec& on, const Vec& normalize, const int& max_idx) const;
   int  getMax(const char* checked, const Vec& on, const Vec& normalize) const;
@@ -710,10 +768,11 @@ template <typename T> bool LP<T>::optimizeNullSpace(bool* fix_partial, Vec& rvec
 #endif
   for(int i = 0; i < one.size(); i ++)
     one[i] = T(1);
+  const Mat Pt(P.transpose());
   
   int  n_fixed;
   if(P.row(cidx).dot(P.row(cidx)) <= T(0)) {
-    (void)gainVectors(fix_partial, checked, rvec, P, b, one, n_fixed);
+    (void)gainVectors(fix_partial, checked, rvec, Pt, b, one, n_fixed);
     delete[] checked;
     return isErrorMargin(P, b, rvec, true);
   }
@@ -727,7 +786,7 @@ template <typename T> bool LP<T>::optimizeNullSpace(bool* fix_partial, Vec& rvec
     b[cidx] = - step * mid + offset;
     if(!isfinite(b[cidx]))
       continue;
-    if(gainVectors(fix_partial, checked, rvec, P, b, one, n_fixed)) {
+    if(gainVectors(fix_partial, checked, rvec, Pt, b, one, n_fixed)) {
       b_proper = b[cidx];
       mid     *= step;
       cerr << ".";
@@ -737,7 +796,7 @@ template <typename T> bool LP<T>::optimizeNullSpace(bool* fix_partial, Vec& rvec
   cerr << endl;
   
   b[cidx] = b_proper;
-  (void)gainVectors(fix_partial, checked, rvec, P, b, one, n_fixed);
+  (void)gainVectors(fix_partial, checked, rvec, Pt, b, one, n_fixed);
   delete[] checked;
   return isErrorMargin(P, b, rvec, true);
 }
@@ -767,29 +826,37 @@ template <typename T> T LP<T>::errorCheck(const Mat& A, const Vec& b) const
   return (max / min) * sqrt(err_error);
 }
 
-template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& P, const Vec& b, const Vec& one, int& n_fixed) const
+template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& Pt, const Vec& b, const Vec& one, int& n_fixed) const
 {
 #if defined(_OPENMP)
 #pragma omp parallel
 #pragma omp for
 #endif
-  for(int i = 0; i < P.rows(); i ++) {
+  for(int i = 0; i < Pt.cols(); i ++) {
     fix[i]     = false;
     checked[i] = false;
   }
   
   // set value, orthogonalize, and scale t.
-  Vec bb(b - P * (P.transpose() * b));
+#if defined(WITHOUT_EIGEN)
+  Vec bb(b - Pt.projectionPt(b));
+#else
+  Vec bb(b - Pt.transpose() * (Pt * b));
+#endif
   if(sqrt(bb.dot(bb)) <= threshold_feas * sqrt(b.dot(b))) {
     cerr << "0";
     fflush(stderr);
-    for(int i = 0; i < bb.size() - P.cols() * 2 - 1; i ++)
+    for(int i = 0; i < bb.size() - Pt.rows() * 2 - 1; i ++)
       bb[i] = - T(1);
-    for(int i = bb.size() - P.cols() * 2 - 1; i < bb.size(); i ++)
+    for(int i = bb.size() - Pt.rows() * 2 - 1; i < bb.size(); i ++)
       bb[i] =   b[i];
-    const Vec bbb(bb - P * (P.transpose() * bb));
+#if defined(WITHOUT_EIGEN)
+    const Vec bbb(bb - Pt.projectionPt(bb));
+#else
+    const Vec bbb(bb - Pt.transpose() * (Pt * bb));
+#endif
     if(sqrt(bbb.dot(bbb)) <= threshold_feas * sqrt(bb.dot(bb))) {
-      rvec  = P.transpose() * (bbb / err_error + b + bb);
+      rvec  = Pt * (bbb / err_error + b + bb);
       cerr << " Second trivial matrix.";
       return true;
     }
@@ -797,17 +864,17 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
   }
   
   n_fixed = 0;
-  rvec = giantStep(fix, checked, P, - bb, n_fixed, one);
+  rvec = giantStep(fix, checked, Pt, - bb, n_fixed, one);
   fflush(stderr);
-  if(n_fixed == P.cols()) {
+  if(n_fixed == Pt.rows()) {
     cerr << "F";
-    Mat F(P.cols(), P.cols());
-    Vec f(P.cols());
-    for(int i = 0, j = 0; i < P.rows() && j < f.size(); i ++)
+    Mat F(Pt.rows(), Pt.rows());
+    Vec f(Pt.rows());
+    for(int i = 0, j = 0; i < Pt.cols() && j < f.size(); i ++)
       if(fix[i]) {
-        const T ratio(sqrt(P.row(i).dot(P.row(i))));
-        F.row(j) = P.row(i) / ratio;
-        f[j]     = b[i]     / ratio;
+        const T ratio(sqrt(Pt.col(i).dot(Pt.col(i))));
+        F.row(j) = Pt.col(i) / ratio;
+        f[j]     = b[i]      / ratio;
         j ++;
       }
 #if defined(WITHOUT_EIGEN)
@@ -817,13 +884,14 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
 #endif
   } else {
     cerr << "g";
-    rvec = P.transpose() * (rvec / rvec.dot(- bb) * bb.dot(bb) + b);
+    rvec = Pt * (rvec / rvec.dot(- bb) * bb.dot(bb) + b);
   }
   fflush(stderr);
   for(int i = 0; i < rvec.size(); i ++)
     if(!isfinite(rvec[i]))
       return false;
-  return isErrorMargin(P, b, rvec, false);
+  // XXX: Pt.transpose can be cached.
+  return isErrorMargin(Pt.transpose(), b, rvec, false);
 }
 
 #if defined(WITHOUT_EIGEN)
@@ -845,25 +913,34 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
     deltab[i] = T(0);
     on[i]     = T(0);
   }
-  for( ; n_fixed < Pverb.cols(); n_fixed ++) {
+  for( ; n_fixed < Pverb.rows(); n_fixed ++) {
     Vec mb(mbb);
 #if defined(_OPENMP)
 #pragma omp parallel
 #pragma omp for
 #endif
-    for(int j = 0; j < Pverb.rows(); j ++) {
-      norm[j]     = sqrt(Pverb.row(j).dot(Pverb.row(j)));
+    for(int j = 0; j < Pverb.cols(); j ++) {
+      norm[j]     = sqrt(Pverb.col(j).dot(Pverb.col(j)));
       checked[j]  = norm[j] <= threshold_p0;
     }
-    deltab  = Pverb * (Pverb.transpose() * mb);
+#if defined(WITHOUT_EIGEN)
+    deltab  = Pverb.projectionPt(mb);
+#else
+    deltab  = Pverb.transpose() * (Pverb * mb);
+#endif
     mb     -= deltab;
     ratiob  = sqrt(mb.dot(mb));
     mb     /= ratiob;
     norm   /= sqrt(norm.dot(norm));
     
     // O(mn^2) check for inner or not.
-    const Vec work(mb + (norm - Pverb * (Pverb.transpose() * norm)) * threshold_loop);
-    on = Pverb * (Pverb.transpose() * (- one)) + work * work.dot(- one) / work.dot(work);
+#if defined(WITHOUT_EIGEN)
+    const Vec work(mb + (norm - Pverb.projectionPt(norm)) * threshold_loop);
+    on = Pverb.projectionPt(- one) + work * work.dot(- one) / work.dot(work);
+#else
+    const Vec work(mb + (norm - Pverb.transpose() * (Pverb * norm)) * threshold_loop);
+    on = Pverb.transpose() * (Pverb * (- one)) + work * work.dot(- one) / work.dot(work);
+#endif
     const int max_idx = getMax(checked, on, norm);
     if(max_idx >= one.size()) {
       cerr << " GiantStep: no more direction.";
@@ -875,9 +952,9 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
     
     // O(mn^2) over all in this function.
 #if defined(WITHOUT_EIGEN)
-    Vec orth(Pverb.row(max_idx));
+    Vec orth(Pverb.col(max_idx));
 #else
-    Vec orth(Pverb.row(max_idx).transpose());
+    Vec orth(Pverb.col(max_idx).transpose());
 #endif
     T   norm2orth(orth.dot(orth));
     int fidx(max_idx);
@@ -887,16 +964,16 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
 #if defined(_OPENMP)
 #pragma omp for
 #endif
-    for(int j = 0; j < Pverb.rows(); j ++) if(!checked[j]) {
-      const T work(Pverb.row(j).dot(orth));
-      const T work2(Pverb.row(j).dot(Pverb.row(j)));
+    for(int j = 0; j < Pverb.cols(); j ++) if(!checked[j]) {
+      const T work(Pverb.col(j).dot(orth));
+      const T work2(Pverb.col(j).dot(Pverb.col(j)));
       if(work >= sqrt(work2 * norm2orth) *
                  (T(1) - threshold_p0) &&
          mbb[fidx] / sqrt(norm2orth) < mbb[j] / sqrt(work2)) {
 #if defined(WITHOUT_EIGEN)
-        orth       = Pverb.row(j);
+        orth       = Pverb.col(j);
 #else
-        orth       = Pverb.row(j).transpose();
+        orth       = Pverb.col(j).transpose();
 #endif
         norm2orth  = work2;
         fidx       = j;
@@ -909,15 +986,15 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
 #if defined(_OPENMP)
 #pragma omp for
 #endif
-    for(int j = 0; j < Pverb.rows(); j ++) {
-      const T work(Pverb.row(j).dot(orth) / norm2orth);
+    for(int j = 0; j < Pverb.cols(); j ++) {
+      const T work(Pverb.col(j).dot(orth) / norm2orth);
 #if defined(WITHOUT_EIGEN)
-      Pverb.row(j) -= orth * work;
+      Pverb.setCol(j, Pverb.col(j) - orth * work);
 #else
-      Pverb.row(j) -= work * orth.transpose();
+      Pverb.col(j) -= work * orth.transpose();
 #endif
       if(checked[j] < 0)
-        mbb[j]      = mb0  * sqrt(Pverb.row(j).dot(Pverb.row(j)) / norm2orth);
+        mbb[j]      = mb0  * sqrt(Pverb.col(j).dot(Pverb.col(j)) / norm2orth);
       else
         mbb[j]     -= mb0  * work;
     }
@@ -969,8 +1046,8 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> LP<T>::ro
   Mat work(A.transpose());
   for(int i = 0; i < A.cols(); i ++) {
 #if defined(WITHOUT_EIGEN)
-    work.row(i) -= Q.transpose() * (Q * work.row(i));
-    Q.row(i) = work.row(i) / sqrt(work.row(i).dot(work.row(i)));
+    work.row(i) -= Q.projectionPt(work.row(i));
+    Q.row(i)     = work.row(i) / sqrt(work.row(i).dot(work.row(i)));
 #else
     work.row(i) -= (Q.transpose() * (Q * work.row(i).transpose())).transpose();
     Q.row(i) = work.row(i) / sqrt(work.row(i).dot(work.row(i)));
