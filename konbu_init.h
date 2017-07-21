@@ -1,6 +1,7 @@
 #include <iostream>
 #include <sstream>
 #include <float.h>
+#include <limits>
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -22,10 +23,26 @@ typedef long double num_t;
 #elif defined(ACC_GMP)
 
 #define REAL_ENABLE_CONVERSION_OPERATORS
-#include <mpfr.h>
-#include <real.hpp>
-typedef mpfr::real<ACC_GMP> num_t;
+#include <mpreal.h>
+typedef mpfr::mpreal num_t;
 //#define MANT_DIG (int)(ACC_GMP / 3.33)
+#define MANT_DIG DBL_DIG
+using mpfr::sqrt;
+using mpfr::pow;
+using mpfr::log;
+
+#elif defined(ACC_QD_DDOUBLE)
+
+#include <qd/dd_real.h>
+#include <qd/dd_inline.h>
+typedef dd_real num_t;
+#define MANT_DIG DBL_DIG
+
+#elif defined(ACC_QD_QDOUBLE)
+
+#include <qd/qd_real.h>
+#include <qd/qd_inline.h>
+typedef qd_real num_t;
 #define MANT_DIG DBL_DIG
 
 #endif
@@ -33,9 +50,17 @@ typedef mpfr::real<ACC_GMP> num_t;
 #if defined(ACC_FLOAT) || defined(ACC_DOUBLE) || defined(ACC_LDOUBLE)
 #include <cmath>
 using namespace std;
-#elif defined (ACC_GMP)
+using std::numeric_limits;
+#elif defined(ACC_GMP)
 const num_t& real(const num_t& x) { return x; }
 const num_t  imag(const num_t& x) { return num_t(0); }
+using std::numeric_limits;
+#elif defined(ACC_QD_DDOUBLE) || defined(ACC_QD_QDOUBLE)
+const num_t& real(const num_t& x) { return x; }
+const num_t  imag(const num_t& x) { return num_t(0); }
+using std::numeric_limits;
+using std::max;
+using std::min;
 #endif
 
 #include "konbu.hh"

@@ -18,6 +18,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <cmath>
+#include <limits>
 
 #if defined(WITHOUT_EIGEN)
 #include <assert.h>
@@ -27,7 +28,9 @@
 using namespace Eigen;
 #endif
 
-using namespace std;
+using std::cout;
+using std::cerr;
+using std::endl;
 
 template <typename T> class SimpleVector {
 public:
@@ -167,11 +170,14 @@ template <typename T> const SimpleVector<T>& SimpleVector<T>::operator /= (const
 template <typename T> T SimpleVector<T>::dot(const SimpleVector<T>& other) const {
   assert(esize == other.esize);
   T res(0);
+  SimpleVector<T> work(other.size());
 #if defined(_OPENMP)
 #pragma omp simd
 #endif
   for(int i = 0; i < esize; i ++)
-    res += entity[i] * other.entity[i];
+    work[i] = entity[i] * other.entity[i];
+  for(int i = 0; i < esize; i ++)
+    res += work[i];
   return res;
 }
 
@@ -540,7 +546,7 @@ public:
   typedef Eigen::Matrix<T, Eigen::Dynamic, 1> Vec;
 #endif
   
-  LP();
+  LP(const T& ebase = T(max(- log(numeric_limits<T>::epsilon()) / log(T(2)), T(2))));
   ~LP();
   
   const T err_norm(const T& err) const;
@@ -577,27 +583,31 @@ private:
   T threshold_loop;
   T threshold_inner;
   T err_error;
+  T mr_intercept;
   T largest_intercept;
   T largest_opt;
   int n_opt_steps;
 };
 
-template <typename T> LP<T>::LP()
+template <typename T> LP<T>::LP(const T& ebase)
 {
-  err_raw_epsilon   = T(1);
-  while(T(1) + err_raw_epsilon != T(1)) err_raw_epsilon /= T(2);
-  err_raw_epsilon  *= T(2);
-  threshold_feas    = err_raw_epsilon * (- log(err_raw_epsilon) / log(2));
-  threshold_p0      = threshold_feas  * (- log(err_raw_epsilon) / log(2));
-  threshold_p0      = sqrt(threshold_feas);
-  threshold_inner   = pow(threshold_p0, T(1) / T(3));
+  // ebase depends on rows of the matrix to be solved.
+  err_raw_epsilon   = numeric_limits<T>::epsilon();
+  threshold_feas    = err_raw_epsilon * ebase;
+  threshold_p0      = threshold_feas  * ebase;
+  threshold_p0      = sqrt(threshold_p0);
+  threshold_inner   = pow(threshold_p0, T(1) / T(3));// * pow(ebase, T(2));
   threshold_loop    = sqrt(threshold_p0 * threshold_inner);
   err_error         = sqrt(threshold_inner);
-  assert(err_error < T(1) - err_raw_epsilon);
-  
-  largest_intercept = - log(err_raw_epsilon) / log(2) / err_error;
+  // XXX: Please configure me first.
+  mr_intercept      = T(10000);
+  // largest_intercept = T(1) / sqrt(err_error);// * ebase);
+  largest_intercept = ebase / err_error;
   largest_opt       = sqrt(largest_intercept);
-  n_opt_steps       = - int(log(err_error) / log(T(2)));
+  assert(largest_opt > T(1));
+  // something bugly with QD library.
+  // n_opt_steps       = - int(log(err_error) / log(T(2)));
+  n_opt_steps       = 20;
   return;
 }
 
@@ -693,21 +703,20 @@ template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const M
   }
   
   // check accuracy.
-  const T errr(errorCheck(AA, bb));
-  if(errr >= T(1))
-    cerr << " err_error?(" << errr << ")";
+  cerr << " err_error(" << errorCheck(AA, bb) << ")";
+  
+  // guarantee that b is positive.
   T rbb(0);
   for(int i = 0; i < A.rows(); i ++) {
     const T lbb(abs(b[i]) / sqrt(A.row(i).dot(A.row(i))));
     if(isfinite(lbb))
       rbb = max(rbb, lbb);
   }
-  
-  // guarantee that b is positive.
-  cerr << " intercept(" << rbb / largest_intercept << ")";
+  const T intercept(min(largest_intercept, mr_intercept * rbb));
+  cerr << " intercept(" << rbb / intercept << ")";
   for(int i = 0; i < A.cols() * 2; i ++) {
     AA(A.rows() + 1 + i, i / 2) = (i % 2 == 0 ? T(1) : - T(1));
-    bb[A.rows() + 1 + i]        = largest_intercept;
+    bb[A.rows() + 1 + i]        = intercept;
   }
   
   bool fflag = false;
@@ -941,6 +950,7 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
     const Vec work(mb + (norm - Pverb.transpose() * (Pverb * norm)) * threshold_loop);
     on = Pverb.transpose() * (Pverb * (- one)) + work * work.dot(- one) / work.dot(work);
 #endif
+   // on /= sqrt(on.dot(on));
     const int max_idx = getMax(checked, on, norm);
     if(max_idx >= one.size()) {
       cerr << " GiantStep: no more direction.";
@@ -956,7 +966,9 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
 #else
     Vec orth(Pverb.col(max_idx).transpose());
 #endif
-    T   norm2orth(orth.dot(orth));
+    const Vec orth0(orth);
+          T   norm2orth(orth.dot(orth));
+    const T   norm2orth0(norm2orth);
     int fidx(max_idx);
     checked[max_idx] = - 1;
     // parallel vectors we didn't scanned.
@@ -965,9 +977,12 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
 #pragma omp for
 #endif
     for(int j = 0; j < Pverb.cols(); j ++) if(!checked[j]) {
-      const T work(Pverb.col(j).dot(orth));
+      const T work(Pverb.col(j).dot(orth0));
       const T work2(Pverb.col(j).dot(Pverb.col(j)));
-      if(work >= sqrt(work2 * norm2orth) *
+#if defined(_OPENMP)
+#pragma omp critical
+#endif
+      if(work >= sqrt(work2 * norm2orth0) *
                  (T(1) - threshold_p0) &&
          mbb[fidx] / sqrt(norm2orth) < mbb[j] / sqrt(work2)) {
 #if defined(WITHOUT_EIGEN)
@@ -1005,7 +1020,8 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
 
 template <typename T> bool LP<T>::checkInner(const Vec& on, const Vec& normalize, const int& max_idx) const
 {
-  return max_idx < on.size() && on[max_idx] / normalize[max_idx] <= threshold_inner;
+  assert(0 <= max_idx && max_idx < on.size());
+  return on[max_idx] / normalize[max_idx] <= threshold_inner;
 }
 
 template <typename T> int LP<T>::getMax(const char* checked, const Vec& on, const Vec& normalize) const {

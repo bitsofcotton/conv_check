@@ -9,6 +9,13 @@ int main(int argc, char* argv[])
   FILE* in;
   in = fopen(argv[1], "ro");
   if(!in) return -1;
+
+#if defined(ACC_GMP)
+  num_t::set_default_prec(mpfr::digits2bits(ACC_GMP));
+#elif defined(ACC_QD_DDOUBLE) || defined(ACC_QD_QDOUBLE)
+  unsigned int old_cw;
+  fpu_fix_start(&old_cw);
+#endif
   
   cout << "File: " << argv[1] << endl;
   cout.precision(MANT_DIG);
@@ -113,6 +120,10 @@ int main(int argc, char* argv[])
   cout << endl;
   
   delete[] fix_partial;
+  
+#if defined(ACC_QD_DDOUBLE) || defined(ACC_QD_QDOUBLE)
+  fpu_fix_end(&old_cw);
+#endif
   
   return 0;
 }
