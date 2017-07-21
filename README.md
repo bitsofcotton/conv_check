@@ -8,9 +8,10 @@ For older information, please refer http://sourceforge.net/projects/convcheck/ .
 # Tips
 The shown string after 'err_error' or 'intercept' is the value depends on the problem and accuracy.
 If the value >> 0 (especially >= 1), it is hard to solve in the accuracy.
+And, this still have bugs around the parameters when increasing calculating accuracies.
 
 # Bugs
-If the accuracy or parameter configuration is not valid for the problem to be solved, the feasibility that this program checks will be bugly, If original problem is good scaled, it rarely happens.
+If the accuracy or parameter configuration is not valid for the problem to be solved, the feasibility that this program checks will be bugly, If original problem is good scaled, it rarely happens. But now, still happens.
 
 # Parameters
 We shall configure the parameters in LP<T>::LP() in konbu.hh. Description is in https://konbu.sakura.ne.jp/ .
@@ -30,6 +31,9 @@ P'[Q[t,x'',0]]&lt;=0
 # Usage
     #include "konbu_init.h"
     ...
+    // if you use with mpfr, num_t::set_default_proc(BITS); needed.
+    // if you use with QD,   unsigned int old_cw; fpu_fix_start(&old_cw); is needed.
+    ...
     int m; // number of rows;
     int n; // number of columns;
     Mat A(m, n);
@@ -38,6 +42,7 @@ P'[Q[t,x'',0]]&lt;=0
     bool fix_partial[A.rows()];
     LP<num_t> lp;
     bool feas = lp.inner(fix_partial, result, A, b);
+    // if you use with QD,    fpu_fix_end(&old_cw); is needed.
 
 # Makefile
 Please configure Makefile manually, there's -DACC_GMP=$bits option or -DACC_DOUBLE option, -DWITHOUT_EIGEN option, and compiler options such like -fopenmp, -pg, -I$where_eigen_lives, ...
