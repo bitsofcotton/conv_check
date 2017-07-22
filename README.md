@@ -11,7 +11,7 @@ If the value >> 0 (especially >= 1), it is hard to solve in the accuracy.
 And, this still have bugs around the parameters when increasing calculating accuracies.
 
 # Bugs
-If the accuracy or parameter configuration is not valid for the problem to be solved, the feasibility that this program checks will be bugly, If original problem is good scaled, it rarely happens. But now, still happens.
+If the accuracy or parameter configuration is not valid for the problem to be solved, the feasibility that this program checks will be bugly, If original problem is good scaled, it rarely happens.
 
 # Parameters
 We shall configure the parameters in LP<T>::LP() in konbu.hh. Description is in https://konbu.sakura.ne.jp/ .
