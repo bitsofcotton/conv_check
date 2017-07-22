@@ -870,7 +870,7 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
   }
   
   n_fixed = 0;
-  rvec = giantStep(fix, checked, Pt, - bb, n_fixed, one);
+  rvec = giantStep(fix, checked, Pt, - bb / sqrt(bb.dot(bb)), n_fixed, one);
   fflush(stderr);
   if(n_fixed == Pt.rows()) {
     cerr << "F";
