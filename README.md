@@ -17,6 +17,9 @@ If the accuracy or parameter configuration is not valid for the problem to be so
 # Parameters
 We shall configure the parameters in LP<T>::LP() in konbu.hh. Description is in https://konbu.sakura.ne.jp/ .
 
+# Demos
+http://services.limpid-intensity.info/konbu.php is a working sample.
+
 # Proof
 Ax&lt;=b
 
