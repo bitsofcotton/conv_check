@@ -51,6 +51,7 @@ typedef qd_real num_t;
 #include <cmath>
 using namespace std;
 using std::numeric_limits;
+template <typename T> T sgn(const T& x) { if(x == 0) return x; else return x > T(0) ? T(1) : - T(1); }
 #elif defined(ACC_GMP)
 const num_t& real(const num_t& x) { return x; }
 const num_t  imag(const num_t& x) { return num_t(0); }
@@ -61,6 +62,7 @@ const num_t  imag(const num_t& x) { return num_t(0); }
 using std::numeric_limits;
 using std::max;
 using std::min;
+template <typename T> T sgn(const T& x) { if(x == 0) return x; else return x > T(0) ? T(1) : - T(1); }
 #endif
 
 #include "konbu.hh"

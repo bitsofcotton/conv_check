@@ -571,7 +571,7 @@ private:
   T    errorCheck(const Mat& A, const Vec& b) const;
   
   bool gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& Pt, const Vec& b, const Vec& one, int& n_fixed) const;
-  Vec  giantStep(bool* fix, char* checked, Mat Pverb, Vec mb, Vec mb1, int& n_fixed, const Vec& one, const Vec& norm) const;
+  Vec  giantStep(bool* fix, char* checked, Mat Pverb, Vec mb, Vec mb1, const T& mbr, int& n_fixed, const Vec& one, const Vec& norm) const;
   bool checkInner(const Vec& on, const Vec& normalize, const int& max_idx) const;
   int  getMax(const char* checked, const Vec& on, const Vec& normalize) const;
   
@@ -864,7 +864,7 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
     bb1 = bbb;
   }
   
-  rvec = giantStep(fix, checked, Pt, - bb / sqrt(bb.dot(bb)), - bb1 / sqrt(bb1.dot(bb1)), n_fixed, one, norm / sqrt(norm.dot(norm)));
+  rvec = giantStep(fix, checked, Pt, - bb / sqrt(bb.dot(bb)), - bb1 / sqrt(bb1.dot(bb1)), b.dot(- bb / sqrt(bb.dot(bb))) / b.dot(- bb1 / sqrt(bb1.dot(bb1))), n_fixed, one, norm / sqrt(norm.dot(norm)));
   fflush(stderr);
   if(n_fixed == Pt.rows()) {
     cerr << "F";
@@ -895,9 +895,9 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
 }
 
 #if defined(WITHOUT_EIGEN)
-template <typename T> SimpleVector<T> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mb, Vec mb1, int& n_fixed, const Vec& one, const Vec& norm) const
+template <typename T> SimpleVector<T> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mb, Vec mb1, const T& mbr, int& n_fixed, const Vec& one, const Vec& norm) const
 #else
-template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mb, Vec mb1, int& n_fixed, const Vec& one, const Vec& norm) const
+template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mb, Vec mb1, const T& mbr, int& n_fixed, const Vec& one, const Vec& norm) const
 #endif
 {
   Vec on(one.size());
@@ -953,7 +953,7 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
 #else
       Pverb.col(j) -= orth * work;
 #endif
-      mb[j]        -= mbb0 * work;
+      mb[j]        -= mbb1 * work * mbr;
       mb1[j]       -= mbb1 * work;
       Porth.row(j) -= ortho * Porth.row(j).dot(ortho) / norm2ortho;
     }

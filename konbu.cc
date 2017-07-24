@@ -11,7 +11,7 @@ int main(int argc, char* argv[])
   if(!in) return -1;
 
 #if defined(ACC_GMP)
-  num_t::set_default_prec(mpfr::digits2bits(ACC_GMP));
+  num_t::set_default_prec(ACC_GMP);
 #elif defined(ACC_QD_DDOUBLE) || defined(ACC_QD_QDOUBLE)
   unsigned int old_cw;
   fpu_fix_start(&old_cw);
