@@ -9,7 +9,7 @@ For older information, please refer http://sourceforge.net/projects/convcheck/ .
 The shown string after 'err_error' or 'intercept' is the value depends on the problem and accuracy.
 If the value >> 0 (especially >= 1), it is hard to solve in the accuracy.  
 If feasible region of the original problem is too tight, there's a possibility fails to get feasible point.
-If then, please extend little more feasible region with adding A.row norm to b.
+If then, please extend little more feasible region by adding A.row norm to b.
 
 # Bugs
 If the accuracy or parameter configuration is not valid for the problem to be solved, the feasibility that this program checks will be bugly, If original problem is good scaled and extended little, it rarely happens.
@@ -32,7 +32,7 @@ P'[Q[t,x'',0]]&lt;=0
 # Usage
     #include "konbu_init.h"
     ...
-    // if you use with mpfr, num_t::set_default_proc(BITS); needed.
+    // if you use with mpfr, num_t::set_default_proc(BITS); is needed.
     // if you use with QD,   unsigned int old_cw; fpu_fix_start(&old_cw); is needed.
     ...
     int m; // number of rows;
