@@ -33,6 +33,9 @@ konbu.hh 内の LP<T>::LP() は調整可能です。
 
 # インストール方法
 Makefile を使用するライブラリが適切に通るように変更してコンパイルしてください。
+オプションには、-DACC_GMP=$bits オプション及び、-DACC_QD_QDOUBLE オプション、または -DACC_DOUBLE オプションなどのうち
+一つを指定してください。  
+また、-DWITHOUT_EIGEN オプションは非常に遅いです。
 
 # デモ
 http://services.limpid-intensity.info/konbu.php にあります。
@@ -65,9 +68,6 @@ P'[Q[t,x'',0]]&lt;=0
     bool feas = lp.inner(fix_partial, result, A, b);
     // if you use with QD,    fpu_fix_end(&old_cw); is needed.
 
-# Makefile
-Please configure Makefile manually, there's -DACC_GMP=$bits option or -DACC_QD_QDOUBLE option or -DACC_DOUBLE option, -DWITHOUT_EIGEN option, and compiler options such like -fopenmp, -pg, -I$where_eigen_lives, ...
-
 # 少しの情報
 パターンマッチ(補空間の&infin;-ノルム最小化)にも使えます。
 32 ビット機で使う場合には、メモリの関係でおおよそ 8k x 4k のサイズまでしか扱えません。
@@ -75,4 +75,4 @@ Please configure Makefile manually, there's -DACC_GMP=$bits option or -DACC_QD_Q
 # その他のダウンロードサイト
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* http://files.limpid-intensity.info/files/konbu_check-1.01.tar.gz (preparing...)
+* http://files.limpid-intensity.info/files/konbu_check-1.01.tar.gz (準備中...)
