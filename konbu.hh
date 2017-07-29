@@ -565,13 +565,13 @@ public:
   bool isErrorMargin(const Mat& A, const Vec& b, const Vec& x, const bool& disp = true) const;
   
 private:
-  bool optimize(bool* fix_partial, Vec& rvec, const Mat& A, const Vec& b, Vec c) const;
+  bool optimize(bool* fix_partial, Vec& rvec, const Mat& A, const Vec& b, const Vec& c) const;
   bool optimizeNullSpace(bool* fix_partial, Vec& rvec, const Mat& P, Vec& b, const int& cidx) const;
   
   T    errorCheck(const Mat& A, const Vec& b) const;
   
   bool gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& Pt, const Vec& b, const Vec& one, int& n_fixed) const;
-  Vec  giantStep(bool* fix, char* checked, Mat Pverb, Vec mb, Vec mb1, const T& mbr, int& n_fixed, const Vec& one, const Vec& norm) const;
+  Vec  giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const;
   bool checkInner(const Vec& on, const Vec& normalize, const int& max_idx) const;
   int  getMax(const char* checked, const Vec& on, const Vec& normalize) const;
   
@@ -584,25 +584,28 @@ private:
   T err_error;
   T mr_intercept;
   T largest_intercept;
+  T largest_opt;
   int n_opt_steps;
 };
 
 template <typename T> LP<T>::LP(const T& ebase)
 {
   // ebase depends on rows of the matrix to be solved.
-  threshold_feas    = numeric_limits<T>::epsilon() * ebase;
-  threshold_p0      = pow(threshold_feas, T(3) / T(4));
+  threshold_feas    = pow(numeric_limits<T>::epsilon(), T(5) / T(6));
+  threshold_p0      = pow(numeric_limits<T>::epsilon(), T(4) / T(6));
   // XXX: Please configure me if it is needed.
-  threshold_inner   = pow(threshold_p0,   T(1) / T(3));
-  threshold_loop    = sqrt(threshold_p0 * threshold_inner);
-  err_error         = sqrt(threshold_inner);
+  // if threshold_loop < 0, extends some regions.
+  threshold_loop    = - pow(numeric_limits<T>::epsilon(), T(3) / T(6));
+  threshold_inner   = pow(numeric_limits<T>::epsilon(), T(2) / T(6));
+  err_error         = pow(numeric_limits<T>::epsilon(), T(1) / T(6));
   // XXX: Please configure me first.
-  mr_intercept      = T(1e12);
+  mr_intercept      = T(1e8);
   largest_intercept = T(1) / err_error;
+  largest_opt       = T(1e2);
   assert(sqrt(largest_intercept) > T(1));
   // something bugly with QD library.
-  // n_opt_steps       = - int(log(err_error) / log(T(2)));
-  n_opt_steps       = 20;
+  n_opt_steps       = - int(log(err_error) / log(T(2)));
+  // n_opt_steps       = 20;
   return;
 }
 
@@ -662,7 +665,7 @@ template <typename T> bool LP<T>::inner(bool* fix_partial, Vec& rvec, const Mat&
   return optimize(fix_partial, rvec, A, b, c);
 }
 
-template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const Mat& A, const Vec& b, Vec c) const
+template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const Mat& A, const Vec& b, const Vec& c) const
 {
   assert(A.cols() == c.size() && A.rows() == b.size() && 0 < c.size() && 0 < b.size());
   // cout << A << endl << b << endl << c.transpose() << endl;
@@ -706,7 +709,7 @@ template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const M
     bb[A.rows() + 1 + i]        = intercept;
   }
   if(c.dot(c) != T(0))
-    bb[A.rows()] = sqrt(intercept);
+    bb[A.rows()] = min(largest_opt, sqrt(intercept));
   
   for(int i = 0; i < AA.rows(); i ++) {
     assert(isfinite(bb[i]));
@@ -821,7 +824,6 @@ template <typename T> T LP<T>::errorCheck(const Mat& A, const Vec& b) const
 
 template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& Pt, const Vec& b, const Vec& one, int& n_fixed) const
 {
-  Vec norm(Pt.cols());
 #if defined(_OPENMP)
 #pragma omp parallel
 #pragma omp for
@@ -829,27 +831,21 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
   for(int i = 0; i < Pt.cols(); i ++) {
     fix[i]     = false;
     checked[i] = false;
-    norm[i]    = sqrt(Pt.col(i).dot(Pt.col(i)));
   }
   
   // set value, orthogonalize, and scale t.
 #if defined(WITHOUT_EIGEN)
-  Vec bb(b + norm * threshold_loop);
-  Vec bb1(b);
-  bb  -= Pt.projectionPt(bb);
-  bb1 -= Pt.projectionPt(bb1);
+  Vec bb(b - Pt.projectionPt(b));
 #else
-  Vec bb(b + norm * threshold_loop);
-  Vec bb1(b);
-  bb  -= Pt.transpose() * (Pt * bb);
-  bb1 -= Pt.transpose() * (Pt * bb1);
+  Vec bb(b - Pt.transpose() * (Pt * b));
 #endif
-  if(sqrt(bb1.dot(bb1)) <= threshold_feas * sqrt(b.dot(b))) {
+  if(sqrt(bb.dot(bb)) <= threshold_feas * sqrt(b.dot(b))) {
     cerr << "0";
     fflush(stderr);
-    bb = - norm;
+    for(int i = 0; i < bb.size() - Pt.rows() * 2 - 1; i ++)
+      bb[i] = sqrt(Pt.col(i).dot(Pt.col(i)));
     for(int i = bb.size() - Pt.rows() * 2 - 1; i < bb.size(); i ++)
-      bb[i] =   b[i];
+      bb[i] = b[i];
 #if defined(WITHOUT_EIGEN)
     const Vec bbb(bb - Pt.projectionPt(bb));
 #else
@@ -861,10 +857,9 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
       return true;
     }
     bb  = bbb;
-    bb1 = bbb;
   }
   
-  rvec = giantStep(fix, checked, Pt, - bb / sqrt(bb.dot(bb)), - bb1 / sqrt(bb1.dot(bb1)), b.dot(- bb / sqrt(bb.dot(bb))) / b.dot(- bb1 / sqrt(bb1.dot(bb1))), n_fixed, one, norm / sqrt(norm.dot(norm)));
+  rvec = giantStep(fix, checked, Pt, - bb, n_fixed, one);
   fflush(stderr);
   if(n_fixed == Pt.rows()) {
     cerr << "F";
@@ -884,7 +879,7 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
 #endif
   } else {
     cerr << "g";
-    rvec = Pt * (rvec / rvec.dot(- bb1) * bb1.dot(bb1) + b);
+    rvec = Pt * (rvec / rvec.dot(- bb) * bb.dot(bb) + b);
   }
   fflush(stderr);
   for(int i = 0; i < rvec.size(); i ++)
@@ -895,30 +890,43 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
 }
 
 #if defined(WITHOUT_EIGEN)
-template <typename T> SimpleVector<T> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mb, Vec mb1, const T& mbr, int& n_fixed, const Vec& one, const Vec& norm) const
+template <typename T> SimpleVector<T> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const
 #else
-template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mb, Vec mb1, const T& mbr, int& n_fixed, const Vec& one, const Vec& norm) const
+template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const
 #endif
 {
   Vec on(one.size());
-  Mat Porth(Pverb.transpose());
+  Vec norm(one.size());
+  Vec deltab(one.size());
+  T   ratiob(1);
 #if defined(_OPENMP)
 #pragma omp parallel
 #pragma omp for
 #endif
-  for(int i = 0; i < norm.size(); i ++)
+  for(int i = 0; i < norm.size(); i ++) {
+    norm[i]   = T(1);
+    deltab[i] = T(0);
     on[i]     = T(0);
+  }
   for(n_fixed = 0 ; n_fixed < Pverb.rows(); n_fixed ++) {
+    Vec mb(mbb);
 #if defined(_OPENMP)
 #pragma omp parallel
 #pragma omp for
 #endif
-    for(int j = 0; j < Pverb.cols(); j ++)
-      checked[j]  = (fix[j] ||
-                     sqrt(Pverb.col(j).dot(Pverb.col(j)) + mb1[j] * mb1[j])
-                       <= threshold_p0 ||
-                     sqrt(Porth.row(j).dot(Porth.row(j))) <= threshold_p0)
-                     ? 1 : 0;
+    for(int j = 0; j < Pverb.cols(); j ++) {
+      norm[j]     = sqrt(Pverb.col(j).dot(Pverb.col(j)));
+      checked[j]  = (fix[j] || norm[j] <= threshold_p0) ? 1 : 0;
+    }
+#if defined(WITHOUT_EIGEN)
+    deltab = Pverb.projectionPt(mb);
+#else
+    deltab = Pverb.transpose() * (Pverb * mb);
+#endif
+    mb    -= deltab;
+    ratiob = sqrt(mb.dot(mb));
+    mb    /= ratiob;
+    norm  /= sqrt(norm.dot(norm));
     
     // O(mn^2) check for inner or not.
 #if defined(WITHOUT_EIGEN)
@@ -938,24 +946,19 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
     
     // O(mn^2) over all in this function.
     const Vec orth(Pverb.col(fidx));
-    const Vec ortho(Porth.row(fidx));
     const T   norm2orth(orth.dot(orth));
-    const T   norm2ortho(ortho.dot(ortho));
-    const T   mbb0(mb[fidx]);
-    const T   mbb1(mb1[fidx]);
+    const T   mbb0(mbb[fidx]);
 #if defined(_OPENMP)
 #pragma omp for
 #endif
     for(int j = 0; j < Pverb.cols(); j ++) {
-      const T work((Pverb.col(j).dot(orth) + mb1[j] * mbb1) / (norm2orth + mbb1 * mbb1));
+      const T work(Pverb.col(j).dot(orth) / norm2orth);
 #if defined(WITHOUT_EIGEN)
       Pverb.setCol(j, Pverb.col(j) - orth * work);
 #else
       Pverb.col(j) -= orth * work;
 #endif
-      mb[j]        -= mbb1 * work * mbr;
-      mb1[j]       -= mbb1 * work;
-      Porth.row(j) -= ortho * Porth.row(j).dot(ortho) / norm2ortho;
+      mbb[j]       -= mbb0 * work;
     }
     fix[fidx] = true;
   }
