@@ -49,6 +49,9 @@ b' is orthogonal to P.
 After loop we get :
 P'[Q[t,x'',0]]&lt;=0
 
+And when loop, the intercept remains, but it is fixed in last.
+So we gain P^t z_0 with fixed intercept, it's ok 1.00 stable version.
+
 # Usage
     #include "konbu_init.h"
     ...
@@ -76,5 +79,5 @@ And with -DWITHOUT_EIGEN option, we can use this without eigen library, (with si
 # Another download sites.
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://konbu.sakura.ne.jp/files/konbu_check-1.01.tar.gz
-* http://files.limpid-intensity.info/files/konbu_check-1.01.tar.gz (preparing...)
+* https://konbu.sakura.ne.jp/files/konbu_check-1.00-stable.tar.gz
+* http://files.limpid-intensity.info/konbu_check-1.00-stable.tar.gz (preparing...)
