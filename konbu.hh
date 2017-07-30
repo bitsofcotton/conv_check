@@ -571,7 +571,7 @@ private:
   T    errorCheck(const Mat& A, const Vec& b) const;
   
   bool gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& Pt, const Vec& b, const Vec& one, int& n_fixed) const;
-  Vec  giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const;
+  Vec  giantStep(bool* fix, char* checked, Mat Pverb, const Vec& mbb0, int& n_fixed, const Vec& one) const;
   bool checkInner(const Vec& on, const Vec& normalize, const int& max_idx) const;
   int  getMax(const char* checked, const Vec& on, const Vec& normalize) const;
   
@@ -591,21 +591,21 @@ private:
 template <typename T> LP<T>::LP(const T& ebase)
 {
   // ebase depends on rows of the matrix to be solved.
-  threshold_feas    = pow(numeric_limits<T>::epsilon(), T(5) / T(6));
-  threshold_p0      = pow(numeric_limits<T>::epsilon(), T(4) / T(6));
+  threshold_feas    = numeric_limits<T>::epsilon() * ebase;
+  threshold_p0      = threshold_feas * ebase;
   // XXX: Please configure me if it is needed.
   // if threshold_loop < 0, extends some regions.
-  threshold_loop    = - pow(numeric_limits<T>::epsilon(), T(3) / T(6));
-  threshold_inner   = pow(numeric_limits<T>::epsilon(), T(2) / T(6));
-  err_error         = pow(numeric_limits<T>::epsilon(), T(1) / T(6));
+  threshold_loop    = - pow(threshold_p0, T(2) / T(3));
+  threshold_inner   = pow(threshold_p0, T(1) / T(3));
+  err_error         = sqrt(threshold_inner);
+  largest_intercept = T(1) / sqrt(err_error);
+  largest_opt       = sqrt(largest_intercept);
   // XXX: Please configure me first.
-  mr_intercept      = T(1e8);
-  largest_intercept = T(1) / err_error;
-  largest_opt       = T(1e2);
+  mr_intercept      = T(1e4);
   assert(sqrt(largest_intercept) > T(1));
   // something bugly with QD library.
-  n_opt_steps       = - int(log(err_error) / log(T(2)));
-  // n_opt_steps       = 20;
+  // n_opt_steps       = - int(log(err_error) / log(T(2)));
+  n_opt_steps       = 20;
   return;
 }
 
@@ -879,7 +879,7 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
 #endif
   } else {
     cerr << "g";
-    rvec = Pt * (rvec / rvec.dot(- bb) * bb.dot(bb) + b);
+    rvec = Pt * (rvec + b);
   }
   fflush(stderr);
   for(int i = 0; i < rvec.size(); i ++)
@@ -890,9 +890,9 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
 }
 
 #if defined(WITHOUT_EIGEN)
-template <typename T> SimpleVector<T> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const
+template <typename T> SimpleVector<T> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, const Vec& mbb0, int& n_fixed, const Vec& one) const
 #else
-template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const
+template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, const Vec& mbb0, int& n_fixed, const Vec& one) const
 #endif
 {
   Vec on(one.size());
@@ -908,6 +908,7 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
     deltab[i] = T(0);
     on[i]     = T(0);
   }
+  Vec mbb(mbb0);
   for(n_fixed = 0 ; n_fixed < Pverb.rows(); n_fixed ++) {
     Vec mb(mbb);
 #if defined(_OPENMP)
@@ -941,6 +942,7 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
       break;
     } else if(checkInner(on, norm, fidx)) {
       n_fixed --;
+      on /= abs(mb.dot(on));
       break;
     }
     
@@ -962,7 +964,7 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
     }
     fix[fidx] = true;
   }
-  return on;
+  return on * ratiob + deltab;
 }
 
 template <typename T> bool LP<T>::checkInner(const Vec& on, const Vec& normalize, const int& max_idx) const
