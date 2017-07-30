@@ -33,6 +33,7 @@ And deducting when the matrix multiplication and same order similar operations c
 
 # How to install
 Please rewrite Makefile as the libraries enabled.
+There's -DACC_GMP=$bits option or -DACC_QD_QDOUBLE option or -DACC_DOUBLE option, -DWITHOUT_EIGEN option, and compiler options such like -fopenmp, -pg, -I$where_eigen_lives, ...
 
 # Demos
 http://services.limpid-intensity.info/konbu.php is a working sample.
@@ -48,6 +49,9 @@ b' is orthogonal to P.
 
 After loop we get :
 P'[Q[t,x'',0]]&lt;=0
+
+And when loop, the intercept remains, but it is fixed in last.
+So we gain P^t z_0 with fixed intercept, it's ok 1.00 stable version.
 
 # Usage
     #include "konbu_init.h"
@@ -65,16 +69,12 @@ P'[Q[t,x'',0]]&lt;=0
     bool feas = lp.inner(fix_partial, result, A, b);
     // if you use with QD,    fpu_fix_end(&old_cw); is needed.
 
-# Makefile
-Please configure Makefile manually, there's -DACC_GMP=$bits option or -DACC_QD_QDOUBLE option or -DACC_DOUBLE option, -DWITHOUT_EIGEN option, and compiler options such like -fopenmp, -pg, -I$where_eigen_lives, ...
-
 # Little Tips
 You can also use this program for pattern matching (finding smaller co-space ∞-norm) of Rn to Rn+m function, or, for finding possible solvees of PDEs (with 2013 memo last stage), (even if it is not only one solvee because of restrict equations # but if so, solvee we get in this shall not be useful, region or shape or rank will be useful).
 If we are using 32 bit machine, it is limitted that we can solve the problem smaller than around 8k x 4k matrix (because of index type is integer, in fact, if we're using 8 bytes floating point number, and like most implementation pointer 1 bit for system, and matrix copy on the memory.).
-And with -DWITHOUT_EIGEN option, we can use this without eigen library, (with simple pure C++ and OpenMP implementation) but it is dramatically slow. 
 
 # Another download sites.
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://konbu.sakura.ne.jp/files/konbu_check-1.01.tar.gz
-* http://files.limpid-intensity.info/files/konbu_check-1.01.tar.gz (preparing...)
+* https://konbu.sakura.ne.jp/files/konbu_check-1.00-stable.tar.gz
+* http://files.limpid-intensity.info/konbu_check-1.00-stable.tar.gz

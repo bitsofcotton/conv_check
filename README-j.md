@@ -7,7 +7,7 @@
 'err_error' または 'intercept' に続く stderr に出力される数値は問題に依存していて、このプログラムがその精度内で
 解くことが難しいかどうかの指標になります。値が 0 よりも極端に大きい場合 (特に >= 1 の時)には、得られる値は非常に訝しいものとなります。  
 また、元の問題の実行可能領域が極端に薄い場合には、とってきた値が意味をなさないことがあります。
-その場合には、b を少し広げた範囲でもう一度実行してみてください。
+その場合には、パラメータ threshold_loop を少し広げた範囲でもう一度実行してみてください。
 
 # バグ
 パラメタか精度が問題に対して悪い値の時に、とってくる値がおかしくなることがあります。
@@ -34,8 +34,7 @@ konbu.hh 内の LP<T>::LP() は調整可能です。
 # インストール方法
 Makefile を使用するライブラリが適切に通るように変更してコンパイルしてください。
 オプションには、-DACC_GMP=$bits オプション及び、-DACC_QD_QDOUBLE オプション、または -DACC_DOUBLE オプションなどのうち
-一つを指定してください。  
-また、-DWITHOUT_EIGEN オプションは非常に遅いです。
+一つを指定してください。また、-DWITHOUT_EIGEN オプションは非常に遅いです。
 
 # デモ
 http://services.limpid-intensity.info/konbu.php にあります。
@@ -51,6 +50,8 @@ b' is orthogonal to P.
 
 After loop we get :
 P'[Q[t,x'',0]]&lt;=0
+
+It's ok 1.00 stable version, please refer README.md
 
 # 使い方
     #include "konbu_init.h"
@@ -75,5 +76,5 @@ P'[Q[t,x'',0]]&lt;=0
 # その他のダウンロードサイト
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://konbu.sakura.ne.jp/files/konbu_check-1.01.tar.gz
-* http://files.limpid-intensity.info/files/konbu_check-1.01.tar.gz (準備中...)
+* https://konbu.sakura.ne.jp/files/konbu_check-1.00-stable.tar.gz
+* http://files.limpid-intensity.info/files/konbu_check-1.00-stable.tar.gz
