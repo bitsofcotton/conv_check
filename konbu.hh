@@ -548,7 +548,7 @@ public:
   typedef Eigen::Matrix<T, Eigen::Dynamic, 1> Vec;
 #endif
   
-  LP(const T& ebase = T(max(- log(numeric_limits<T>::epsilon()) / log(T(2)), T(2))));
+  LP(const T& ebase = T(max(pow(- log(numeric_limits<T>::epsilon()) / log(T(2)), T(2)), T(2))));
   ~LP();
   
   // <c, x> -> obj, Ax <= b.
@@ -592,11 +592,11 @@ template <typename T> LP<T>::LP(const T& ebase)
 {
   // ebase depends on rows of the matrix to be solved.
   threshold_feas    = numeric_limits<T>::epsilon() * ebase;
-  threshold_p0      = threshold_feas * ebase;
+  threshold_p0      = sqrt(threshold_feas);
   // XXX: Please configure me if it is needed.
   // if threshold_loop < 0, extends some regions.
-  threshold_loop    = - pow(threshold_p0, T(2) / T(3));
-  threshold_inner   = pow(threshold_p0, T(1) / T(3));
+  threshold_loop    = - pow(threshold_p0, T(2) / T(4));
+  threshold_inner   = pow(threshold_p0, T(1) / T(4));
   err_error         = sqrt(threshold_inner);
   largest_intercept = T(1) / sqrt(err_error);
   largest_opt       = sqrt(largest_intercept);
