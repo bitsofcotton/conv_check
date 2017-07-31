@@ -14,7 +14,9 @@ If then, please extend little more feasible region by changing threshold_loop pa
 
 # Bugs
 If the accuracy or parameter configuration is not valid for the problem to be solved, the feasibility that
-this program checks will be bugly, If original problem is good scaled and extended little, it rarely happens.
+this program checks will be bugly, If original problem is good scaled and extended little, it rarely happens.  
+And, when we're gaining optimal value, in the parameter initialize function, we assume the largest ratio of
+optimal value and variable upper (lower) bound. So if we gained seems to be not optimal, please configure the parameters.
 
 # Parameters
 We shall configure the parameters in LP<T>::LP() in konbu.hh.
