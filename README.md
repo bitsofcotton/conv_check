@@ -3,16 +3,20 @@ Get feasible point from multiple linear constraints.
 
 This program aims to check and gain the solvee from multiple set of linear constraints in O(mn^2) arithmetic and elementary function operations.
 C++ is needed, and to calculate faster, Eigen library is needed, and to calculate more accurate (in the most case we need), we may need a gmp library, a mpfr library and a mpfr++ library is needed, or, with certain accuracy calculation, QD library is needed.
-For older information, please refer http://sourceforge.net/projects/convcheck/ .
+For older information, please refer http://sourceforge.net/projects/convcheck/ .  
+Freezed.
 
 # Tips
 The shown string after 'err_error' or 'intercept' is the value depends on the problem and accuracy.
-If the value >> 0 (especially >= 1), it is hard to solve in the accuracy.  
+If the value >> 0 (especially >= 1), it is hard to solve in the accuracy.
 If feasible region of the original problem is too tight, there's a possibility fails to get feasible point.
-If then, please extend little more feasible region by adding A.row norm to b.
+If then, please extend little more feasible region by changing threshold_loop parameter.
 
 # Bugs
-If the accuracy or parameter configuration is not valid for the problem to be solved, the feasibility that this program checks will be bugly, If original problem is good scaled and extended little, it rarely happens.
+If the accuracy or parameter configuration is not valid for the problem to be solved, the feasibility that
+this program checks will be bugly, If original problem is good scaled and extended little, it rarely happens.  
+And, when we're gaining optimal value, in the parameter initialize function, we assume the largest ratio of
+optimal value and variable upper (lower) bound. So if we gained seems to be not optimal, please configure the parameters.
 
 # Parameters
 We shall configure the parameters in LP<T>::LP() in konbu.hh.
@@ -28,8 +32,7 @@ We shall configure the parameters in LP<T>::LP() in konbu.hh.
 Japanese Patent Draft : JP2014089683 . 
 
 # Status
-Freezed. But to make this program worthy, some user interface or some program corresponding to phenomenon needed. And waiting g++ for compatible with OpenACC with iris chips.
-And deducting when the matrix multiplication and same order similar operations can be done in O(1), maybe this time, O(max(m, n)) arithmetic and matrix multiplication similar operations will be taken. 
+Waiting g++ for compatible with OpenACC with iris chips.
 
 # How to install
 Please rewrite Makefile as the libraries enabled.
@@ -76,5 +79,5 @@ If we are using 32 bit machine, it is limitted that we can solve the problem sma
 # Another download sites.
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://konbu.sakura.ne.jp/files/konbu_check-1.00-stable.tar.gz
-* http://files.limpid-intensity.info/konbu_check-1.00-stable.tar.gz
+* https://konbu.sakura.ne.jp/files/konbu_check-1.01-stable2.tar.gz
+* http://files.limpid-intensity.info/konbu_check-1.01-stable2.tar.gz
