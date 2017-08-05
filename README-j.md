@@ -73,11 +73,11 @@ It's ok 1.00 stable version, please refer README.md
 # 少しの情報
 パターンマッチ(補空間の&infin;-ノルム最小化)にも使えます。
 32 ビット機で使う場合には、メモリの関係でおおよそ 8k x 4k のサイズまでしか扱えません。  
-もしも、解くべき問題の変数の最大最小値が [-&pi;,&pi] 範囲内にあるなど、安定している場合には、
+もしも、解くべき問題の変数の最大最小値が [-&pi;,&pi;] 範囲内にあるなど、安定している場合には、
 largest_intercept パラメータをそのように変えることで、(低い精度でも)かなり安定した結果を得ることができます。
 
 # その他のダウンロードサイト
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
 * https://konbu.sakura.ne.jp/files/konbu_check-1.01-stable2.tar.gz
-* http://files.limpid-intensity.info/files/konbu_check-1.01-stable2.tar.gz
+* http://files.limpid-intensity.info/konbu_check-1.01-stable2.tar.gz
