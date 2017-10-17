@@ -31,6 +31,7 @@ using namespace Eigen;
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::fflush;
 
 template <typename T> class SimpleVector {
 public:
@@ -474,13 +475,17 @@ template <typename T> SimpleVector<T> SimpleMatrix<T>::solve(SimpleVector<T> oth
     }
   }
   for(int i = erows - 1; 0 <= i; i --) {
-    other[i]         /= work.entity[i][i];
-    assert(isfinite(other[i]));
+    const T buf(other[i] / work.entity[i][i]);
+    if(!isfinite(buf)) {
+      assert(!isfinite(T(1) / other[i]));
+      continue;
+    }
+    other[i]    = buf;
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
     for(int j = i - 1; 0 <= j; j --)
-      other[j]       -= other[i] * work.entity[j][i];
+      other[j] -= other[i] * work.entity[j][i];
   }
   return other;
 }
@@ -548,7 +553,7 @@ public:
   typedef Eigen::Matrix<T, Eigen::Dynamic, 1> Vec;
 #endif
   
-  LP(const T& ebase = T(max(pow(- log(numeric_limits<T>::epsilon()) / log(T(2)), T(2)), T(2))));
+  LP(const T& ebase = T(max(exp(sqrt(- log(numeric_limits<T>::epsilon()))), T(2))));
   ~LP();
   
   // <c, x> -> obj, Ax <= b.
@@ -570,8 +575,8 @@ private:
   
   T    errorCheck(const Mat& A, const Vec& b) const;
   
-  bool gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& Pt, const Vec& b, const Vec& one, int& n_fixed) const;
-  Vec  giantStep(bool* fix, char* checked, Mat Pverb, const Vec& mbb0, int& n_fixed, const Vec& one) const;
+  bool gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& Pt, Vec b, const Vec& one, int& n_fixed) const;
+  Vec  giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const;
   bool checkInner(const Vec& on, const Vec& normalize, const int& max_idx) const;
   int  getMax(const char* checked, const Vec& on, const Vec& normalize) const;
   
@@ -590,19 +595,30 @@ private:
 
 template <typename T> LP<T>::LP(const T& ebase)
 {
-  // ebase depends on rows of the matrix to be solved.
+  // error rate for orthogonalized b.
   threshold_feas    = numeric_limits<T>::epsilon() * ebase;
+  
+  // if SimpleVector<T>::solve fails, increase this:
   threshold_p0      = sqrt(threshold_feas);
-  // XXX: Please configure me if it is needed.
-  // if threshold_loop < 0, extends some regions.
-  threshold_loop    = - pow(threshold_p0, T(2) / T(4));
-  threshold_inner   = pow(threshold_p0, T(1) / T(4));
+  
+  // is we gain inner or not:
+  threshold_inner   = sqrt(threshold_p0);
+  
+  // last stage error rate:
   err_error         = sqrt(threshold_inner);
+  
+  // box constraints that Px<=b, not b<=Px:
   largest_intercept = T(1) / sqrt(err_error);
+  
+  // largest optimized value ratio to be calculated:
   largest_opt       = sqrt(largest_intercept);
+  assert(sqrt(largest_opt) > T(1));
+  
   // XXX: Please configure me first.
-  mr_intercept      = T(1e4);
-  assert(sqrt(largest_intercept) > T(1));
+  // if threshold_loop < 0, extends some regions.
+  threshold_loop    = T(0);
+  mr_intercept      = T(1e6);
+  
   // something bugly with QD library.
   // n_opt_steps       = - int(log(err_error) / log(T(2)));
   n_opt_steps       = 20;
@@ -702,7 +718,7 @@ template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const M
     if(isfinite(lbb))
       rbb = max(rbb, lbb);
   }
-  const T intercept(min(largest_intercept, mr_intercept * rbb));
+  const T intercept(min(largest_intercept, mr_intercept * rbb) / sqrt(T(2 * A.cols())));
   cerr << " intercept(" << rbb / intercept << ")";
   for(int i = 0; i < A.cols() * 2; i ++) {
     AA(A.rows() + 1 + i, i / 2) = (i % 2 == 0 ? T(1) : - T(1));
@@ -822,8 +838,10 @@ template <typename T> T LP<T>::errorCheck(const Mat& A, const Vec& b) const
   return (max / min) * sqrt(err_error);
 }
 
-template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& Pt, const Vec& b, const Vec& one, int& n_fixed) const
+template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& Pt, Vec b, const Vec& one, int& n_fixed) const
 {
+  Vec norm(Pt.cols());
+  T   normb0(0);
 #if defined(_OPENMP)
 #pragma omp parallel
 #pragma omp for
@@ -831,8 +849,15 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
   for(int i = 0; i < Pt.cols(); i ++) {
     fix[i]     = false;
     checked[i] = false;
+    norm[i]    = sqrt(Pt.col(i).dot(Pt.col(i)));
   }
+  for(int i = 0; i < Pt.cols() - Pt.rows() * 2 - 1; i ++)
+    normb0 += b[i] * b[i];
+  normb0 = sqrt(normb0);
   
+  // extend intercepts with 1 epsilon.
+  b -= norm * normb0 * threshold_loop;
+
   // set value, orthogonalize, and scale t.
 #if defined(WITHOUT_EIGEN)
   Vec bb(b - Pt.projectionPt(b));
@@ -890,9 +915,9 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
 }
 
 #if defined(WITHOUT_EIGEN)
-template <typename T> SimpleVector<T> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, const Vec& mbb0, int& n_fixed, const Vec& one) const
+template <typename T> SimpleVector<T> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const
 #else
-template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, const Vec& mbb0, int& n_fixed, const Vec& one) const
+template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const
 #endif
 {
   Vec on(one.size());
@@ -908,7 +933,6 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
     deltab[i] = T(0);
     on[i]     = T(0);
   }
-  Vec mbb(mbb0);
   for(n_fixed = 0 ; n_fixed < Pverb.rows(); n_fixed ++) {
     Vec mb(mbb);
 #if defined(_OPENMP)
@@ -981,7 +1005,7 @@ template <typename T> int LP<T>::getMax(const char* checked, const Vec& on, cons
   for(int j = result + 1; j < on.size(); j ++)
     if(!checked[j] && on[result] / normalize[result] < on[j] / normalize[j])
       result = j;
-  if(checked[result])
+  if(result < on.size() && checked[result])
     result = on.size();
   return result;
 }
