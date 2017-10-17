@@ -30,7 +30,7 @@ konbu.hh 内の LP<T>::LP() は調整可能です。
 特許出願の JP2014089683 . 
 
 # 開発状態
-g++ が OpenACC 経由で iris チップをサポートすることを待っています。  
+g++ または clang++ が OpenACC 経由で iris チップをサポートすることを待っています。  
 
 # インストール方法
 Makefile を使用するライブラリが適切に通るように変更してコンパイルしてください。
@@ -38,21 +38,19 @@ Makefile を使用するライブラリが適切に通るように変更して�
 一つを指定してください。また、-DWITHOUT_EIGEN オプションは非常に遅いです。
 
 # デモ
-http://services.limpid-intensity.info/konbu.php にあります。
+https://services.limpid-intensity.info/konbu.php にあります。
 
 # 証明
 Ax&lt;=b
 
-[-b,P][t,x']&lt;=0
+[-b,P][t,x']&lt;=0,
 P is part of orthogonal matrix.
 
-[-b'+1&epsilon;,P][t,x'+b'']&lt;=1&epsilon;
+[-b'+1&epsilon;,P][t,x'+b'']&lt;=1&epsilon;,
 b' is orthogonal to P.
 
 After loop we get :
 P'[Q[t,x'',0]]&lt;=0
-
-It's ok 1.00 stable version, please refer README.md
 
 # 使い方
     #include "konbu_init.h"
@@ -79,5 +77,5 @@ largest_intercept パラメータをそのように変えることで、(低い�
 # その他のダウンロードサイト
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://konbu.sakura.ne.jp/files/konbu_check-1.01-stable2.tar.gz
-* http://files.limpid-intensity.info/konbu_check-1.01-stable2.tar.gz
+* https://konbu.sakura.ne.jp/files/konbu_check-1.01-release.tar.gz
+* https://files.limpid-intensity.info/konbu_check-1.01-release.tar.gz

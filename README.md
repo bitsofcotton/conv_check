@@ -2,7 +2,7 @@
 Get feasible point from multiple linear constraints.
 
 This program aims to check and gain the solvee from multiple set of linear constraints in O(mn^2) arithmetic and elementary function operations.
-C++ is needed, and to calculate faster, Eigen library is needed, and to calculate more accurate (in the most case we need), we may need a gmp library, a mpfr library and a mpfr++ library is needed, or, with certain accuracy calculation, QD library is needed.
+C++ is needed, and to calculate faster, Eigen library is needed, and to calculate more accurate (in the most case we need), we may need a gmp library, a mpfr library and a mpfr++ library, or, with certain accuracy calculation, we need QD library.
 For older information, please refer http://sourceforge.net/projects/convcheck/ .  
 Freezed.
 
@@ -14,7 +14,7 @@ If then, please extend little more feasible region by changing threshold_loop pa
 
 # Bugs
 If the accuracy or parameter configuration is not valid for the problem to be solved, the feasibility that
-this program checks will be bugly, If original problem is good scaled and extended little, it rarely happens.  
+this program checks will be bugly, If a original problem is good scaled and extended little, it rarely happens.  
 And, when we're gaining optimal value, in the parameter initialize function, we assume the largest ratio of
 optimal value and variable upper (lower) bound. So if we gained seems to be not optimal, please configure the parameters.
 
@@ -32,29 +32,29 @@ We shall configure the parameters in LP<T>::LP() in konbu.hh.
 Japanese Patent Draft : JP2014089683 . 
 
 # Status
-Waiting g++ for compatible with OpenACC with iris chips.
+Waiting g++ or clang++ for compatible with OpenACC with iris chips.
 
 # How to install
 Please rewrite Makefile as the libraries enabled.
 There's -DACC_GMP=$bits option or -DACC_QD_QDOUBLE option or -DACC_DOUBLE option, -DWITHOUT_EIGEN option, and compiler options such like -fopenmp, -pg, -I$where_eigen_lives, ...
 
 # Demos
-http://services.limpid-intensity.info/konbu.php is a working sample.
+https://services.limpid-intensity.info/konbu.php is a working sample.
 
 # Proof
 Ax&lt;=b
 
-[-b,P][t,x']&lt;=0
+[-b,P][t,x']&lt;=0,
 P is part of orthogonal matrix.
 
-[-b'+1&epsilon;,P][t,x'+b'']&lt;=1&epsilon;
+[-b'+1&epsilon;,P][t,x'+b'']&lt;=1&epsilon;,
 b' is orthogonal to P.
 
 After loop we get :
 P'[Q[t,x'',0]]&lt;=0
 
-And when loop, the intercept remains, but it is fixed in last.
-So we gain P^t z_0 with fixed intercept, it's ok 1.00 stable version.
+And when loop, the intercept added is remains, but it is fixed in the last.
+So we gain P^t z_0 with fixed intercept.
 
 # Usage
     #include "konbu_init.h"
@@ -79,5 +79,5 @@ If we are using 32 bit machine, it is limitted that we can solve the problem sma
 # Another download sites.
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://konbu.sakura.ne.jp/files/konbu_check-1.01-stable2.tar.gz
-* http://files.limpid-intensity.info/konbu_check-1.01-stable2.tar.gz
+* https://konbu.sakura.ne.jp/files/konbu_check-1.01-release.tar.gz
+* https://files.limpid-intensity.info/konbu_check-1.01-release.tar.gz
