@@ -7,6 +7,8 @@ For older information, please refer http://sourceforge.net/projects/convcheck/ .
 
 N.B. this program needs large accuracy for unscaled problems.
 
+Freezed.
+
 # Tips
 The shown string after 'err_error' or 'intercept' is the value depends on the problem and accuracy.
 If the value >> 0 (especially >= 1), it is hard to solve in the accuracy.
