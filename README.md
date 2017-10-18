@@ -79,5 +79,5 @@ If we are using 32 bit machine, it is limitted that we can solve the problem sma
 # Another download sites.
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://konbu.sakura.ne.jp/files/konbu_check-1.01-release.tar.gz
-* https://files.limpid-intensity.info/konbu_check-1.01-release.tar.gz
+* https://konbu.sakura.ne.jp/files/konbu_check-1.01-release2.tar.gz
+* https://files.limpid-intensity.info/konbu_check-1.01-release2.tar.gz
