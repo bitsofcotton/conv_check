@@ -2,6 +2,9 @@
 複数の線形制約条件から内点を一つとってくるプログラムです。O(mn^2) 回の四則演算及び初等関数演算が必要になります。
 また、もっと早く計算するためには、Eigen ライブラリが必要です。さらに精度よく計算するためには、mpfr++ ライブラリと付随するライブラリ、
 または、QD ライブラリが必要です。  
+
+また、このプログラムはよくスケールされていない問題に関しては大きな精度を必要とします。
+
 現在開発休止中です。
 
 # Tips
@@ -77,5 +80,5 @@ largest_intercept パラメータをそのように変えることで、(低い�
 # その他のダウンロードサイト
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://konbu.sakura.ne.jp/files/konbu_check-1.01-release.tar.gz
-* https://files.limpid-intensity.info/konbu_check-1.01-release.tar.gz
+* https://konbu.sakura.ne.jp/files/konbu_check-1.01-release2.tar.gz
+* https://files.limpid-intensity.info/konbu_check-1.01-release2.tar.gz

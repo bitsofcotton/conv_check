@@ -2,8 +2,11 @@
 Get feasible point from multiple linear constraints.
 
 This program aims to check and gain the solvee from multiple set of linear constraints in O(mn^2) arithmetic and elementary function operations.
-C++ is needed, and to calculate faster, Eigen library is needed, and to calculate more accurate (in the most case we need), we may need a gmp library, a mpfr library and a mpfr++ library, or, with certain accuracy calculation, we need QD library.
+C++ is needed, and to calculate faster, Eigen library is needed, and to calculate more accurate (in the most case we need), we may need a gmp library, a mpfr library and a mpfr++ library, or, with certain accuracy calculation, we need a QD library.
 For older information, please refer http://sourceforge.net/projects/convcheck/ .  
+
+N.B. this program needs large accuracy for unscaled problems.
+
 Freezed.
 
 # Tips
@@ -79,5 +82,5 @@ If we are using 32 bit machine, it is limitted that we can solve the problem sma
 # Another download sites.
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://konbu.sakura.ne.jp/files/konbu_check-1.01-release.tar.gz
-* https://files.limpid-intensity.info/konbu_check-1.01-release.tar.gz
+* https://konbu.sakura.ne.jp/files/konbu_check-1.01-release2.tar.gz
+* https://files.limpid-intensity.info/konbu_check-1.01-release2.tar.gz
