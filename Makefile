@@ -6,7 +6,7 @@ CXXFLAGS+=	-I/usr/local/include/eigen3
 CXXFLAGS+=	-std=c++11
 CXXFLAGS+=	-Ofast -mtune=native
 #CXXFLAGS+=	-g2 -O2 -Wall
-#CXXFLAGS+=	-fopenmp
+#CXXFLAGS+=	-fopenmp -lgomp
 #CXXFLAGS+=	-pg
 LDFLAGS=	-lstdc++
 #LDFLAGS+=	-L/usr/local/lib -lmpfr -lgmp
