@@ -5,7 +5,7 @@
 
 また、このプログラムはよくスケールされていない問題に関しては大きな精度を必要とします。
 
-現在開発休止中です。
+現在実際に開発休止中です。
 
 # Tips
 'err_error' または 'intercept' に続く stderr に出力される数値は問題に依存していて、このプログラムがその精度内で
@@ -80,5 +80,5 @@ largest_intercept パラメータをそのように変えることで、(低い�
 # その他のダウンロードサイト
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://konbu.sakura.ne.jp/files/konbu_check-1.01-release2.tar.gz
-* https://files.limpid-intensity.info/konbu_check-1.01-release2.tar.gz
+* https://konbu.sakura.ne.jp/files/konbu_check-1.01-release3.tar.gz
+* https://files.limpid-intensity.info/konbu_check-1.01-release3.tar.gz
