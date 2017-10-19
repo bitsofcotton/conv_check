@@ -7,7 +7,7 @@ For older information, please refer http://sourceforge.net/projects/convcheck/ .
 
 N.B. this program needs large accuracy for unscaled problems.
 
-Freezed.
+Actually freezed.
 
 # Tips
 The shown string after 'err_error' or 'intercept' is the value depends on the problem and accuracy.
@@ -82,5 +82,5 @@ If we are using 32 bit machine, it is limitted that we can solve the problem sma
 # Another download sites.
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://konbu.sakura.ne.jp/files/konbu_check-1.01-release2.tar.gz
-* https://files.limpid-intensity.info/konbu_check-1.01-release2.tar.gz
+* https://konbu.sakura.ne.jp/files/konbu_check-1.01-release3.tar.gz
+* https://files.limpid-intensity.info/konbu_check-1.01-release3.tar.gz
