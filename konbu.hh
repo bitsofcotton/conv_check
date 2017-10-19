@@ -19,10 +19,9 @@
 #include <iostream>
 #include <cmath>
 #include <limits>
-
-#if defined(WITHOUT_EIGEN)
 #include <assert.h>
-#else
+
+#if !defined(WITHOUT_EIGEN)
 #include <Eigen/Core>
 #include <Eigen/Dense>
 using namespace Eigen;
@@ -231,7 +230,7 @@ public:
         T&               operator () (const int& y, const int& x);
   const T                operator () (const int& y, const int& x) const;
         SimpleVector<T>& row(const int& y);
-  const SimpleVector<T>  row(const int& y) const;
+  const SimpleVector<T>& row(const int& y) const;
   const SimpleVector<T>  col(const int& x) const;
         void             setCol(const int& x, const SimpleVector<T>& other);
         SimpleMatrix<T>  transpose() const;
@@ -409,7 +408,7 @@ template <typename T> SimpleVector<T>& SimpleMatrix<T>::row(const int& y) {
   return entity[y];
 }
 
-template <typename T> const SimpleVector<T> SimpleMatrix<T>::row(const int& y) const {
+template <typename T> const SimpleVector<T>& SimpleMatrix<T>::row(const int& y) const {
   assert(0 <= y && y < erows && entity);
   return entity[y];
 }
@@ -475,8 +474,8 @@ template <typename T> SimpleVector<T> SimpleMatrix<T>::solve(SimpleVector<T> oth
   }
   for(int i = erows - 1; 0 <= i; i --) {
     const T buf(other[i] / work.entity[i][i]);
-    if(!isfinite(buf)) {
-      assert(!isfinite(work.entity[i][i] / other[i]));
+    if(!isfinite(buf) || isnan(buf)) {
+      assert(!isfinite(work.entity[i][i] / other[i]) || isnan(work.entity[i][i] / other[i]));
       continue;
     }
     other[i]    = buf;
@@ -548,7 +547,7 @@ public:
   typedef Eigen::Matrix<T, Eigen::Dynamic, 1> Vec;
 #endif
   
-  LP(const T& ebase = T(max(exp(sqrt(- log(numeric_limits<T>::epsilon()))), T(2))));
+  LP();
   ~LP();
   
   // <c, x> -> obj, Ax <= b.
@@ -588,10 +587,10 @@ private:
   int n_opt_steps;
 };
 
-template <typename T> LP<T>::LP(const T& ebase)
+template <typename T> LP<T>::LP()
 {
   // error rate for orthogonalized b.
-  threshold_feas    = numeric_limits<T>::epsilon() * ebase;
+  threshold_feas    = pow(numeric_limits<T>::epsilon(), T(3) / T(4));
   
   // if SimpleVector<T>::solve fails, increase this:
   threshold_p0      = sqrt(threshold_feas);
@@ -601,7 +600,7 @@ template <typename T> LP<T>::LP(const T& ebase)
   
   // last stage error rate:
   err_error         = sqrt(threshold_inner);
-  
+
   // box constraints that Px<=b, not b<=Px:
   largest_intercept = T(1) / sqrt(err_error);
   
@@ -611,12 +610,12 @@ template <typename T> LP<T>::LP(const T& ebase)
   
   // XXX: Please configure me first.
   // if threshold_loop < 0, extends some regions.
-  threshold_loop    = T(0);
-  mr_intercept      = T(1e6);
+  threshold_loop    = - err_error;
+  mr_intercept      = T(1e12);
   
   // something bugly with QD library.
-  // n_opt_steps       = - int(log(err_error) / log(T(2)));
-  n_opt_steps       = 20;
+  // n_opt_steps       = int(log(largest_opt) / log(T(2))) + 1;
+  n_opt_steps       = 18;
   return;
 }
 
@@ -710,7 +709,7 @@ template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const M
   T rbb(0);
   for(int i = 0; i < A.rows(); i ++) {
     const T lbb(abs(b[i]) / sqrt(A.row(i).dot(A.row(i))));
-    if(isfinite(lbb))
+    if(isfinite(lbb) && !isnan(lbb))
       rbb = max(rbb, lbb);
   }
   const T intercept(min(largest_intercept, mr_intercept * rbb) / sqrt(T(2 * A.cols())));
@@ -720,12 +719,12 @@ template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const M
     bb[A.rows() + 1 + i]        = intercept;
   }
   if(c.dot(c) != T(0))
-    bb[A.rows()] = min(largest_opt, sqrt(intercept));
+    bb[A.rows()] = min(largest_opt, intercept);
   
   for(int i = 0; i < AA.rows(); i ++) {
-    assert(isfinite(bb[i]));
+    assert(isfinite(bb[i]) && !isnan(bb[i]));
     for(int j = 0; j < AA.cols(); j ++)
-      assert(isfinite(AA(i, j)));
+      assert(isfinite(AA(i, j)) && !isnan(AA(i, j)));
   }
   cerr << " .";
   
@@ -767,8 +766,8 @@ template <typename T> bool LP<T>::optimizeNullSpace(bool* fix_partial, Vec& rvec
   assert(P.rows() == b.size() && 0 < P.cols() && P.cols() < P.rows());
   
   // to avoid stack underflow.
-  char*   checked = new char[b.size()];
-  Vec     one(b.size());
+  char* checked = new char[b.size()];
+  Vec   one(b.size());
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
@@ -784,24 +783,22 @@ template <typename T> bool LP<T>::optimizeNullSpace(bool* fix_partial, Vec& rvec
   }
   
   // get optimal value.
-  T mid(1);
   T offset(b[cidx]);
-  T step(offset * T(2));
-  T b_proper(offset);
-  for(int i = 0; i <= n_opt_steps; i ++) {
+  T mid(1 / offset);
+  T step(offset * offset * T(2));
+  for(int i = 0; i < n_opt_steps; i ++) {
     b[cidx] = - step * mid + offset;
-    if(!isfinite(b[cidx]))
+    if(!isfinite(b[cidx]) || isnan(b[cidx]))
       continue;
     if(gainVectors(fix_partial, checked, rvec, Pt, b, one, n_fixed)) {
-      b_proper = b[cidx];
-      mid     *= step;
+      mid *= step;
       cerr << ".";
     }
     step = sqrt(step);
   }
   cerr << endl;
   
-  b[cidx] = b_proper;
+  b[cidx] = - mid + offset;
   (void)gainVectors(fix_partial, checked, rvec, Pt, b, one, n_fixed);
   delete[] checked;
   return isErrorMargin(P, b, rvec, true);
@@ -835,7 +832,6 @@ template <typename T> T LP<T>::errorCheck(const Mat& A, const Vec& b) const
 template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& Pt, Vec b, const Vec& one, int& n_fixed) const
 {
   Vec norm(Pt.cols());
-  T   normb0(0);
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
@@ -844,6 +840,7 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
     checked[i] = false;
     norm[i]    = sqrt(Pt.col(i).dot(Pt.col(i)));
   }
+  T normb0(0);
   for(int i = 0; i < Pt.cols() - Pt.rows() * 2 - 1; i ++)
     normb0 += b[i] * b[i];
   normb0 = sqrt(normb0);
@@ -901,7 +898,7 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
   }
   fflush(stderr);
   for(int i = 0; i < rvec.size(); i ++)
-    if(!isfinite(rvec[i]))
+    if(!isfinite(rvec[i]) || isnan(rvec[i]))
       return false;
   // XXX: Pt.transpose can be cached.
   return isErrorMargin(Pt.transpose(), b, rvec, false);
@@ -1012,9 +1009,12 @@ template <typename T> bool LP<T>::isErrorMargin(const Mat& A, const Vec& b, cons
     if(result < err[i]) result = err[i];
   if(disp)
     cerr << " errorMargin?(" << sqrt(x.dot(x)) << ", " << sqrt(b.dot(b)) << ", " << result << ")";
-  return isfinite(x.dot(x)) && (sqrt(x.dot(x)) > err_error ? result / sqrt(x.dot(x)) : result) <= err_error;
-  // XXX: or use this??
-  // return result <= err_error;
+  return isfinite(result)         && !isnan(result) &&
+         isfinite(x.dot(x))       && !isnan(x.dot(x)) &&
+         isfinite(sqrt(x.dot(x))) && !isnan(sqrt(x.dot(x))) &&
+         (sqrt(x.dot(x)) > err_error ? result / sqrt(x.dot(x)) : result) <=
+           err_error &&
+         sqrt(x.dot(x)) < sqrt(b.dot(b)) * largest_intercept;
 }
 
 #if defined(WITHOUT_EIGEN)
