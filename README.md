@@ -13,7 +13,8 @@ Actually freezed.
 The shown string after 'err_error' or 'intercept' is the value depends on the problem and accuracy.
 If the value >> 0 (especially >= 1), it is hard to solve in the accuracy.
 If feasible region of the original problem is too tight, there's a possibility fails to get feasible point.
-If then, please extend little more feasible region by changing threshold_loop parameter.
+If then, please extend little more feasible region by changing threshold_loop parameter.  
+Include guard definition this uses seems high probability to conflict, please patch before to use.
 
 # Bugs
 If the accuracy or parameter configuration is not valid for the problem to be solved, the feasibility that
@@ -82,5 +83,5 @@ If we are using 32 bit machine, it is limitted that we can solve the problem sma
 # Another download sites.
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://konbu.sakura.ne.jp/files/konbu_check-1.01-release3.tar.gz
-* https://files.limpid-intensity.info/konbu_check-1.01-release3.tar.gz
+* https://konbu.sakura.ne.jp/files/
+* https://files.limpid-intensity.info/
