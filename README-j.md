@@ -1,6 +1,6 @@
 # Konbu Check
 複数の線形制約条件から内点を一つとってくるプログラムです。O(mn^2) 回の四則演算及び初等関数演算が必要になります。
-また、もっと早く計算するためには、Eigen ライブラリが必要です。さらに精度よく計算するためには、mpfr++ ライブラリと付随するライブラリ、
+また、もっと速く計算するためには、Eigen ライブラリが必要です。さらに精度よく計算するためには、mpfr++ ライブラリと付随するライブラリ、
 または、QD ライブラリが必要です。  
 
 また、このプログラムはよくスケールされていない問題に関しては大きな精度を必要とします。
@@ -11,7 +11,8 @@
 'err_error' または 'intercept' に続く stderr に出力される数値は問題に依存していて、このプログラムがその精度内で
 解くことが難しいかどうかの指標になります。値が 0 よりも極端に大きい場合 (特に >= 1 の時)には、得られる値は非常に訝しいものとなります。  
 また、元の問題の実行可能領域が極端に薄い場合には、とってきた値が意味をなさないことがあります。
-その場合には、パラメータ threshold_loop を少し広げた範囲でもう一度実行してみてください。
+その場合には、パラメータ threshold_loop を少し広げた範囲でもう一度実行してみてください。  
+インクルードガードに使用している定義が他のライブラリと競合する可能性が高いです。適宜パッチしてお使いください。  
 
 # バグ
 パラメタか精度が問題に対して悪い値の時に、とってくる値がおかしくなることがあります。
@@ -80,5 +81,5 @@ largest_intercept パラメータをそのように変えることで、(低い�
 # その他のダウンロードサイト
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://konbu.sakura.ne.jp/files/konbu_check-1.01-release3.tar.gz
-* https://files.limpid-intensity.info/konbu_check-1.01-release3.tar.gz
+* https://konbu.sakura.ne.jp/files/
+* https://files.limpid-intensity.info/

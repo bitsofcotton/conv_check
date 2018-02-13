@@ -611,10 +611,10 @@ template <typename T> LP<T>::LP()
   // XXX: Please configure me first.
   // if threshold_loop < 0, extends some regions.
   threshold_loop    = - err_error;
-  mr_intercept      = T(1e12);
+  mr_intercept      = T(1e8);
   
   // something bugly with QD library.
-  // n_opt_steps       = int(log(largest_opt) / log(T(2))) + 1;
+  // n_opt_steps       = 2 * int(log(largest_opt) / log(T(2))) + 1;
   n_opt_steps       = 18;
   return;
 }
@@ -831,23 +831,14 @@ template <typename T> T LP<T>::errorCheck(const Mat& A, const Vec& b) const
 
 template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& Pt, Vec b, const Vec& one, int& n_fixed) const
 {
-  Vec norm(Pt.cols());
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
   for(int i = 0; i < Pt.cols(); i ++) {
     fix[i]     = false;
     checked[i] = false;
-    norm[i]    = sqrt(Pt.col(i).dot(Pt.col(i)));
   }
-  T normb0(0);
-  for(int i = 0; i < Pt.cols() - Pt.rows() * 2 - 1; i ++)
-    normb0 += b[i] * b[i];
-  normb0 = sqrt(normb0);
   
-  // extend intercepts with 1 epsilon.
-  b -= norm * normb0 * threshold_loop;
-
   // set value, orthogonalize, and scale t.
 #if defined(WITHOUT_EIGEN)
   Vec bb(b - Pt.projectionPt(b));
@@ -910,6 +901,7 @@ template <typename T> SimpleVector<T> LP<T>::giantStep(bool* fix, char* checked,
 template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const
 #endif
 {
+  const T normb0(sqrt(mbb.dot(mbb)));
   Vec on(one.size());
   Vec norm(one.size());
   Vec deltab(one.size());
@@ -925,7 +917,6 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
   Vec mb(mbb.size());
   Vec orthbuf(mbb.size());
   for(n_fixed = 0 ; n_fixed < Pverb.rows(); n_fixed ++) {
-    mb = mbb;
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
@@ -933,6 +924,9 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
       norm[j]     = sqrt(Pverb.col(j).dot(Pverb.col(j)));
       checked[j]  = (fix[j] || norm[j] <= threshold_p0) ? 1 : 0;
     }
+    norm  /= sqrt(norm.dot(norm));
+    // extend b with threshold_loop. N.B. mbb = - b'.
+    mb     = mbb + norm * normb0 * threshold_loop;
 #if defined(WITHOUT_EIGEN)
     deltab = Pverb.projectionPt(mb);
 #else
@@ -941,7 +935,6 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
     mb    -= deltab;
     ratiob = sqrt(mb.dot(mb));
     mb    /= ratiob;
-    norm  /= sqrt(norm.dot(norm));
     
     // O(mn^2) check for inner or not.
 #if defined(WITHOUT_EIGEN)
