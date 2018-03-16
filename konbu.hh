@@ -1,6 +1,6 @@
 /* You can use one of the both BSD 3-Clause License or GNU Lesser General Public License 3.0 for this source. */
 /* BSD 3-Clause License:
- * Copyright (c) 2013 - 2017, kazunobu watatsu.
+ * Copyright (c) 2013 - 2018, kazunobu watatsu.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -30,7 +30,7 @@ using namespace Eigen;
 using std::cout;
 using std::cerr;
 using std::endl;
-using std::fflush;
+using std::flush;
 
 template <typename T> class SimpleVector {
 public:
@@ -590,7 +590,7 @@ private:
 template <typename T> LP<T>::LP()
 {
   // error rate for orthogonalized b.
-  threshold_feas    = pow(numeric_limits<T>::epsilon(), T(3) / T(4));
+  threshold_feas    = sqrt(numeric_limits<T>::epsilon());
   
   // if SimpleVector<T>::solve fails, increase this:
   threshold_p0      = sqrt(threshold_feas);
@@ -599,8 +599,8 @@ template <typename T> LP<T>::LP()
   threshold_inner   = sqrt(threshold_p0);
   
   // last stage error rate:
-  err_error         = sqrt(threshold_inner);
-
+  err_error         = pow(threshold_inner, T(1) / T(4));
+  
   // box constraints that Px<=b, not b<=Px:
   largest_intercept = T(1) / sqrt(err_error);
   
@@ -610,8 +610,8 @@ template <typename T> LP<T>::LP()
   
   // XXX: Please configure me first.
   // if threshold_loop < 0, extends some regions.
-  threshold_loop    = - err_error;
-  mr_intercept      = T(1e8);
+  threshold_loop    = T(0);
+  mr_intercept      = largest_intercept;
   
   // something bugly with QD library.
   // n_opt_steps       = 2 * int(log(largest_opt) / log(T(2))) + 1;
@@ -731,11 +731,9 @@ template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const M
   // <c, x> -> obj, Q R x <= b.
   // O(mn * max(m, n))
   Mat Q(roughQR(AA));
-  cerr << "Q";
-  fflush(stderr);
+  cerr << "Q" << flush;
   Mat R(Q.transpose() * AA);
-  cerr << "R";
-  fflush(stderr);
+  cerr << "R" << flush;
 
   // optimize <co_c, x'>, co_A [x' 0] <= b. co_A^t co_A = I, in O(mn^2L).
   bool* bfix_partial = new bool[Q.rows()];
@@ -747,8 +745,7 @@ template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const M
       fix_partial[i] = bfix_partial[i];
   delete[] bfix_partial;
   
-  cerr << " NULL";
-  fflush(stderr);
+  cerr << " NULL" << flush;
   
   // pull original solvee.
 #if defined(WITHOUT_EIGEN)
@@ -783,22 +780,19 @@ template <typename T> bool LP<T>::optimizeNullSpace(bool* fix_partial, Vec& rvec
   }
   
   // get optimal value.
-  T offset(b[cidx]);
-  T mid(1 / offset);
-  T step(offset * offset * T(2));
+  T offset(- rvec.size() * rvec.size());
+  T step(offset * T(2));
   for(int i = 0; i < n_opt_steps; i ++) {
-    b[cidx] = - step * mid + offset;
+    b[cidx] = step + offset;
     if(!isfinite(b[cidx]) || isnan(b[cidx]))
-      continue;
-    if(gainVectors(fix_partial, checked, rvec, Pt, b, one, n_fixed)) {
-      mid *= step;
-      cerr << ".";
-    }
-    step = sqrt(step);
+      break;
+    if(gainVectors(fix_partial, checked, rvec, Pt, b, one, n_fixed))
+      offset += step;
+    step /= T(2);
   }
   cerr << endl;
   
-  b[cidx] = - mid + offset;
+  b[cidx] = offset;
   (void)gainVectors(fix_partial, checked, rvec, Pt, b, one, n_fixed);
   delete[] checked;
   return isErrorMargin(P, b, rvec, true);
@@ -846,8 +840,7 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
   Vec bb(b - Pt.transpose() * (Pt * b));
 #endif
   if(sqrt(bb.dot(bb)) <= threshold_feas * sqrt(b.dot(b))) {
-    cerr << "0";
-    fflush(stderr);
+    cerr << "0" << flush;
     for(int i = 0; i < bb.size() - Pt.rows() * 2 - 1; i ++)
       bb[i] = sqrt(Pt.col(i).dot(Pt.col(i)));
     for(int i = bb.size() - Pt.rows() * 2 - 1; i < bb.size(); i ++)
@@ -866,7 +859,7 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
   }
   
   rvec = giantStep(fix, checked, Pt, - bb, n_fixed, one);
-  fflush(stderr);
+  cerr << flush;
   if(n_fixed == Pt.rows()) {
     cerr << "F";
     Mat F(Pt.rows(), Pt.rows());
@@ -887,7 +880,7 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
     cerr << "g";
     rvec = Pt * (rvec + b);
   }
-  fflush(stderr);
+  cerr << flush;
   for(int i = 0; i < rvec.size(); i ++)
     if(!isfinite(rvec[i]) || isnan(rvec[i]))
       return false;
@@ -895,6 +888,7 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
   return isErrorMargin(Pt.transpose(), b, rvec, false);
 }
 
+// That's one giant step for me, one small step for mankind.
 #if defined(WITHOUT_EIGEN)
 template <typename T> SimpleVector<T> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const
 #else
@@ -999,7 +993,8 @@ template <typename T> bool LP<T>::isErrorMargin(const Mat& A, const Vec& b, cons
   T result(0);
   const Vec err(A * x - b);
   for(int i = 0; i < b.size(); i ++)
-    if(result < err[i]) result = err[i];
+    if(!isfinite(err[i]) || isnan(err[i]) ||
+       result < err[i]) result = err[i];
   if(disp)
     cerr << " errorMargin?(" << sqrt(x.dot(x)) << ", " << sqrt(b.dot(b)) << ", " << result << ")";
   return isfinite(result)         && !isnan(result) &&
