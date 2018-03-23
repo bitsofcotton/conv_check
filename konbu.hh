@@ -565,7 +565,7 @@ public:
   
 private:
   bool optimize(bool* fix_partial, Vec& rvec, const Mat& A, const Vec& b, const Vec& c) const;
-  bool optimizeNullSpace(bool* fix_partial, Vec& rvec, const Mat& P, Vec& b, const int& cidx) const;
+  bool optimizeNullSpace(bool* fix_partial, Vec& rvec, const Mat& Pt, Vec& b, const int& cidx) const;
   
   T    errorCheck(const Mat& A, const Vec& b) const;
   
@@ -574,7 +574,7 @@ private:
   bool checkInner(const Vec& on, const Vec& normalize, const int& max_idx) const;
   int  getMax(const char* checked, const Vec& on, const Vec& normalize) const;
   
-  Mat  roughQR(const Mat& A) const;
+  Mat  roughQR(const Mat& At) const;
 
   T threshold_feas;
   T threshold_p0;
@@ -730,16 +730,16 @@ template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const M
   
   // <c, x> -> obj, Q R x <= b.
   // O(mn * max(m, n))
-  Mat Q(roughQR(AA));
+  Mat Qt(roughQR(AA.transpose()));
   cerr << "Q" << flush;
-  Mat R(Q.transpose() * AA);
+  Mat R(Qt * AA);
   cerr << "R" << flush;
 
   // optimize <co_c, x'>, co_A [x' 0] <= b. co_A^t co_A = I, in O(mn^2L).
-  bool* bfix_partial = new bool[Q.rows()];
-  for(int i = 0; i < Q.rows(); i ++)
+  bool* bfix_partial = new bool[AA.rows()];
+  for(int i = 0; i < AA.rows(); i ++)
     bfix_partial[i] = false;
-  (void)optimizeNullSpace(bfix_partial, rvec, Q, bb, A.rows());
+  (void)optimizeNullSpace(bfix_partial, rvec, Qt, bb, A.rows());
   if(fix_partial)
     for(int i = 0; i < A.rows(); i ++)
       fix_partial[i] = bfix_partial[i];
@@ -758,9 +758,9 @@ template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const M
   return isErrorMargin(A, b, rvec, true);
 }
 
-template <typename T> bool LP<T>::optimizeNullSpace(bool* fix_partial, Vec& rvec, const Mat& P, Vec& b, const int& cidx) const
+template <typename T> bool LP<T>::optimizeNullSpace(bool* fix_partial, Vec& rvec, const Mat& Pt, Vec& b, const int& cidx) const
 {
-  assert(P.rows() == b.size() && 0 < P.cols() && P.cols() < P.rows());
+  assert(Pt.cols() == b.size() && 0 < Pt.rows() && Pt.rows() < Pt.cols());
   
   // to avoid stack underflow.
   char* checked = new char[b.size()];
@@ -770,13 +770,12 @@ template <typename T> bool LP<T>::optimizeNullSpace(bool* fix_partial, Vec& rvec
 #endif
   for(int i = 0; i < one.size(); i ++)
     one[i] = T(1);
-  const Mat Pt(P.transpose());
   
   int  n_fixed;
-  if(P.row(cidx).dot(P.row(cidx)) <= T(0)) {
+  if(Pt.col(cidx).dot(Pt.col(cidx)) <= T(0)) {
     (void)gainVectors(fix_partial, checked, rvec, Pt, b, one, n_fixed);
     delete[] checked;
-    return isErrorMargin(P, b, rvec, true);
+    return isErrorMargin(Pt.transpose(), b, rvec, true);
   }
   
   // get optimal value.
@@ -795,7 +794,7 @@ template <typename T> bool LP<T>::optimizeNullSpace(bool* fix_partial, Vec& rvec
   b[cidx] = offset;
   (void)gainVectors(fix_partial, checked, rvec, Pt, b, one, n_fixed);
   delete[] checked;
-  return isErrorMargin(P, b, rvec, true);
+  return isErrorMargin(Pt.transpose(), b, rvec, true);
 }
 
 template <typename T> T LP<T>::errorCheck(const Mat& A, const Vec& b) const
@@ -888,7 +887,6 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
   return isErrorMargin(Pt.transpose(), b, rvec, false);
 }
 
-// That's one giant step for me, one small step for mankind.
 #if defined(WITHOUT_EIGEN)
 template <typename T> SimpleVector<T> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const
 #else
@@ -1006,17 +1004,17 @@ template <typename T> bool LP<T>::isErrorMargin(const Mat& A, const Vec& b, cons
 }
 
 #if defined(WITHOUT_EIGEN)
-template <typename T> SimpleMatrix<T> LP<T>::roughQR(const Mat& A) const {
+template <typename T> SimpleMatrix<T> LP<T>::roughQR(const Mat& At) const {
 #else
-template <typename T> Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> LP<T>::roughQR(const Mat& A) const {
+template <typename T> Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> LP<T>::roughQR(const Mat& At) const {
 #endif
-  Mat Q(A.cols(), A.rows());
+  Mat Q(At.rows(), At.cols());
   for(int i = 0; i < Q.rows(); i ++)
     for(int j = 0; j < Q.cols(); j ++)
       Q(i, j) = T(0);
   // N.B. .transpose() costs a lot.
-  Mat work(A.transpose());
-  for(int i = 0; i < A.cols(); i ++) {
+  Mat work(At);
+  for(int i = 0; i < At.rows(); i ++) {
 #if defined(WITHOUT_EIGEN)
     work.row(i) -= Q.projectionPt(work.row(i));
 #else
@@ -1026,7 +1024,7 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> LP<T>::ro
     // in this case, not.
     Q.row(i) = work.row(i) / sqrt(work.row(i).dot(work.row(i)));
   }
-  return Q.transpose();
+  return Q;
 }
 
 #define _LINEAR_OPT_
