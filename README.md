@@ -2,10 +2,8 @@
 Get feasible point from multiple linear constraints.
 
 This program aims to check and gain the solvee from multiple set of linear constraints in O(mn^2) arithmetic and elementary function operations.
-C++ is needed, and to calculate faster, Eigen library is needed, and to calculate more accurate (in the most case we need), we may need a gmp library, a mpfr library and a mpfr++ library, or, with certain accuracy calculation, we need a QD library.
+C++ is needed, and to calculate faster, Eigen library is needed, and to calculate more accurate (N.B. in the most case we need), we may need a gmp library, a mpfr library and a mpfr++ library, or, with certain accuracy calculation, we need a QD library.
 For older information, please refer http://sourceforge.net/projects/convcheck/ .  
-
-N.B. this program needs large accuracy for unscaled problems.
 
 Actually freezed.
 
@@ -78,10 +76,11 @@ So we gain P^t z_0 with fixed intercept.
 
 # Little Tips
 You can also use this program for pattern matching (finding smaller co-space ∞-norm) of Rn to Rn+m function, or, for finding possible solvees of PDEs (with 2013 memo last stage), (even if it is not only one solvee because of restrict equations # but if so, solvee we get in this shall not be useful, region or shape or rank will be useful).
-If we are using 32 bit machine, it is limitted that we can solve the problem smaller than around 8k x 4k matrix (because of index type is integer, in fact, if we're using 8 bytes floating point number, and like most implementation pointer 1 bit for system, and matrix copy on the memory.).
+If we are using 32 bit machine, it is limitted that we can solve the problem smaller than around 8k x 4k matrix (because of index type is integer, in fact, if we're using 8 bytes floating point number, and like most implementation pointer 1 bit for system, and matrix copy on the memory.).  
+If, we run this program with over mn core MPUs, we can gain inner vector in O(n) time order.  
+And, if we can fix all in once the inner vector instead of fixing one by one, it's O(lg(mn^2)) time order but is seems not.
 
 # Another download sites.
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://konbu.sakura.ne.jp/files/
 * https://files.limpid-intensity.info/
