@@ -59,6 +59,7 @@ And when loop, the intercept added is remains, but it is fixed in the last.
 So we gain P^t z_0 with fixed intercept.
 
 # Usage
+    // if you need, please scope with namespace block, but include guard may harms.
     #include "konbu_init.h"
     ...
     // if you use with mpfr, num_t::set_default_proc(BITS); is needed.
