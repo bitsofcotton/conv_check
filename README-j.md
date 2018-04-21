@@ -55,10 +55,11 @@ After loop we get :
 P'[Q[t,x'',0]]&lt;=0
 
 # 使い方
+    // 必要であれば namespace ブロックで括ってください。ただし、インクルードガードが有害な場合があります。
     #include "konbu_init.h"
     ...
-    // if you use with mpfr, num_t::set_default_proc(BITS); is needed.
-    // if you use with QD,   unsigned int old_cw; fpu_fix_start(&old_cw); is needed.
+    // mpfr の場合, num_t::set_default_proc(BITS); が必要です
+    // QD   の場合,   unsigned int old_cw; fpu_fix_start(&old_cw); が必要です
     ...
     int m; // number of rows;
     int n; // number of columns;
@@ -68,7 +69,7 @@ P'[Q[t,x'',0]]&lt;=0
     bool fix_partial[A.rows()];
     LP<num_t> lp;
     bool feas = lp.inner(fix_partial, result, A, b);
-    // if you use with QD,    fpu_fix_end(&old_cw); is needed.
+    // QD   の場合,    fpu_fix_end(&old_cw); が必要です
 
 # 少しの情報
 パターンマッチ(補空間の&infin;-ノルム最小化)にも使えます。
