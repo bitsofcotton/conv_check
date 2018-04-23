@@ -1,0 +1,12 @@
+konbu 1.02
+
+Please visit github on konbu check for detailed information.
+The address is https://github.com/bitsofcotton/conv_check .
+konbu.hh is New BSD License or LGPL3.0 Licensed.
+
+Notes:
+  Parameters in the initialize function are configurable.
+  There's a chance that feasible region slips.
+  So if it happens, please extend a little b with A.row norm.
+  And, this program needs large accuracy for almost all problems.
+
