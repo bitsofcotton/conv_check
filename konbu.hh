@@ -292,7 +292,7 @@ template <typename T> SimpleMatrix<T> SimpleMatrix<T>::operator + (const SimpleM
 }
 
 template <typename T> const SimpleMatrix<T>& SimpleMatrix<T>::operator += (const SimpleMatrix<T>& other) {
-  assert(erows = other.erows && ecols == other.ecols);
+  assert(erows == other.erows && ecols == other.ecols);
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
@@ -938,11 +938,9 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
     
     // N.B. This might be rewrited as fix once with sorted fidxs.
     //   When the hypothesis is true, next loop must fix or get inner vector.
-    //   Also, it takes O(lg(mn)) time order when running in mn core
-    //   for this function.
+    //   Also, it takes O(lg(mn)) time order for this function.
     //   But to do so, theoretical proof is needed and it seems not
     //   because we use mb with little extended and its norm is in error order.
-    //   Now, overall O(n*lg(mn)) time order when running in mn core.
     const int fidx = getMax(checked, on, norm);
     if(fidx >= one.size()) {
       cerr << " GiantStep: no more direction.";
@@ -1024,7 +1022,8 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> LP<T>::ro
   for(int i = 0; i < At.rows(); i ++) {
     // N.B.
     // This can be rewrited as divide and conquere in this case (max rank).
-    // So it takes O(lg(n)*lg(mn)) time order when running in mn core.
+    // So it takes O(lg(n)*lg(mn)) time order when all variables
+    // are parallelized.
 #if defined(WITHOUT_EIGEN)
     work.row(i) -= Q.projectionPt(work.row(i));
 #else
