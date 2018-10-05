@@ -12,6 +12,7 @@ The shown string after 'err_error' or 'intercept' is the value depends on the pr
 If the value >> 0 (especially >= 1), it is hard to solve in the accuracy.
 If feasible region of the original problem is too tight, there's a possibility fails to get feasible point.
 If then, please extend little more feasible region by changing threshold_loop parameter.  
+And, largest_intercept can be tiny value for the problem with medium accuracy, so please configure this first.  
 Include guard definition this uses seems high probability to conflict, please patch before to use.
 
 # Bugs
