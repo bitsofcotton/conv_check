@@ -21,6 +21,11 @@ this program checks will be bugly, If a original problem is good scaled and exte
 And, when we're gaining optimal value, in the parameter initialize function, we assume the largest ratio of
 optimal value and variable upper (lower) bound. So if we gained seems to be not optimal, please configure the parameters.
 
+# Specfcaion
+LP::maxmize andLP::mnmize function is unstable because we don't use proper initial value.
+So it is considerable that once inner point, then, expand method seems to be stable but it is not needed by
+purpose of this program, so it is not implemented.
+
 # Parameters
 We shall configure the parameters in LP<T>::LP() in konbu.hh.
 * threshold_feas   : QR decomposition errors.
