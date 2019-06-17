@@ -292,7 +292,7 @@ template <typename T> SimpleMatrix<T> SimpleMatrix<T>::operator + (const SimpleM
 }
 
 template <typename T> const SimpleMatrix<T>& SimpleMatrix<T>::operator += (const SimpleMatrix<T>& other) {
-  assert(erows = other.erows && ecols == other.ecols);
+  assert(erows == other.erows && ecols == other.ecols);
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
@@ -590,7 +590,7 @@ private:
 template <typename T> LP<T>::LP()
 {
   // error rate for orthogonalized b.
-  threshold_feas    = sqrt(numeric_limits<T>::epsilon());
+  threshold_feas    = numeric_limits<T>::epsilon() * T(32);
   
   // if SimpleVector<T>::solve fails, increase this:
   threshold_p0      = sqrt(threshold_feas);
@@ -935,6 +935,12 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
     on = Pverb.transpose() * (Pverb * (- one)) + mb * mb.dot(- one) / mb.dot(mb);
 #endif
     on /= sqrt(on.dot(on));
+    
+    // N.B. This might be rewrited as fix once with sorted fidxs.
+    //   When the hypothesis is true, next loop must fix or get inner vector.
+    //   Also, it takes O(lg(mn)) time order for this function.
+    //   But to do so, theoretical proof is needed and it seems not
+    //   because we use mb with little extended and its norm is in error order.
     const int fidx = getMax(checked, on, norm);
     if(fidx >= one.size()) {
       cerr << " GiantStep: no more direction.";
@@ -1012,9 +1018,12 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> LP<T>::ro
   for(int i = 0; i < Q.rows(); i ++)
     for(int j = 0; j < Q.cols(); j ++)
       Q(i, j) = T(0);
-  // N.B. .transpose() costs a lot.
   Mat work(At);
   for(int i = 0; i < At.rows(); i ++) {
+    // N.B.
+    // This can be rewrited as divide and conquere in this case (max rank).
+    // So it takes O(lg(n)*lg(mn)) time order when all variables
+    // are parallelized.
 #if defined(WITHOUT_EIGEN)
     work.row(i) -= Q.projectionPt(work.row(i));
 #else
