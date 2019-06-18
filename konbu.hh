@@ -581,7 +581,6 @@ private:
   T threshold_loop;
   T threshold_inner;
   T err_error;
-  T mr_intercept;
   T largest_intercept;
   T largest_opt;
   int n_opt_steps;
@@ -599,23 +598,22 @@ template <typename T> LP<T>::LP()
   threshold_inner   = sqrt(threshold_p0);
   
   // last stage error rate:
-  err_error         = pow(threshold_inner, T(1) / T(4));
+  err_error         = sqrt(threshold_inner);
   
   // box constraints that Px<=b, not b<=Px:
   largest_intercept = T(1) / sqrt(err_error);
-  
+
   // largest optimized value ratio to be calculated:
   largest_opt       = sqrt(largest_intercept);
-  assert(sqrt(largest_opt) > T(1));
+  
+  assert(sqrt(err_error) < T(1) && largest_opt > T(1));
   
   // XXX: Please configure me first.
   // if threshold_loop < 0, extends some regions.
   threshold_loop    = T(0);
-  mr_intercept      = largest_intercept;
   
   // something bugly with QD library.
-  // n_opt_steps       = 2 * int(log(largest_opt) / log(T(2))) + 1;
-  n_opt_steps       = 18;
+  n_opt_steps       = 2 * int(log(largest_opt) / log(T(2))) + 1;
   return;
 }
 
@@ -712,14 +710,14 @@ template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const M
     if(isfinite(lbb) && !isnan(lbb))
       rbb = max(rbb, lbb);
   }
-  const T intercept(min(largest_intercept, mr_intercept * rbb) / sqrt(T(2 * A.cols())));
+  const T intercept(largest_intercept * rbb / sqrt(T(2 * A.cols())));
   cerr << " intercept(" << rbb / intercept << ")";
   for(int i = 0; i < A.cols() * 2; i ++) {
     AA(A.rows() + 1 + i, i / 2) = (i % 2 == 0 ? T(1) : - T(1));
     bb[A.rows() + 1 + i]        = intercept;
   }
   if(c.dot(c) != T(0))
-    bb[A.rows()] = min(largest_opt, intercept);
+    bb[A.rows()] = min(largest_opt * rbb, intercept);
   
   for(int i = 0; i < AA.rows(); i ++) {
     assert(isfinite(bb[i]) && !isnan(bb[i]));
@@ -779,8 +777,8 @@ template <typename T> bool LP<T>::optimizeNullSpace(bool* fix_partial, Vec& rvec
   }
   
   // get optimal value.
-  T offset(- rvec.size() * rvec.size());
-  T step(offset * T(2));
+  T offset(b[cidx]);
+  T step(- offset * T(2));
   for(int i = 0; i < n_opt_steps; i ++) {
     b[cidx] = step + offset;
     if(!isfinite(b[cidx]) || isnan(b[cidx]))
