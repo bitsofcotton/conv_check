@@ -83,8 +83,8 @@ template <typename T> SimpleVector<T>::SimpleVector(const SimpleVector<T>& other
 }
 
 template <typename T> SimpleVector<T>::~SimpleVector() {
-  if(entity)
-    delete[] entity;
+  delete[] entity;
+  entity = NULL;
   return;
 }
 
@@ -145,8 +145,7 @@ template <typename T> SimpleVector<T>& SimpleVector<T>::operator = (const Simple
   if(entity == other.entity && esize == other.esize)
     return *this;
   if(esize != other.esize) {
-    if(entity)
-      delete[] entity;
+    delete[] entity;
     entity = new T[other.esize];
   }
   esize = other.esize;
@@ -199,8 +198,7 @@ template <typename T> void SimpleVector<T>::resize(const int& size) {
   assert(size > 0);
   if(size != esize) {
     esize = size;
-    if(entity)
-      delete[] entity;
+    delete[] entity;
     entity = new T[esize];
   }
   return;
@@ -271,8 +269,8 @@ template <typename T> SimpleMatrix<T>::SimpleMatrix(const SimpleMatrix<T>& other
 }
 
 template <typename T> SimpleMatrix<T>::~SimpleMatrix() {
-  if(entity)
-    delete[] entity;
+  delete[] entity;
+  entity = NULL;
   return;
 }
   
@@ -374,8 +372,7 @@ template <typename T> SimpleMatrix<T>& SimpleMatrix<T>::operator = (const Simple
   if(entity == other.entity && erows == other.erows && ecols == other.ecols)
     return *this;
   if(erows != other.erows || ecols != other.ecols) {
-    if(entity)
-      delete[] entity;
+    delete[] entity;
     entity = new SimpleVector<T>[other.erows];
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
@@ -521,8 +518,7 @@ template <typename T> void SimpleMatrix<T>::resize(const int& rows, const int& c
   assert(rows > 0 && cols > 0);
   if(rows != erows) {
     erows = rows;
-    if(entity)
-      delete[] entity;
+    delete[] entity;
     entity = new SimpleVector<T>[erows];
   }
   if(cols != ecols) {
