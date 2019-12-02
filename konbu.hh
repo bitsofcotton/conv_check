@@ -1,6 +1,6 @@
 /* You can use one of the both BSD 3-Clause License or GNU Lesser General Public License 3.0 for this source. */
 /* BSD 3-Clause License:
- * Copyright (c) 2013 - 2018, kazunobu watatsu.
+ * Copyright (c) 2013 - 2019, kazunobu watatsu.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -31,12 +31,14 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::flush;
+using std::move;
 
 template <typename T> class SimpleVector {
 public:
   SimpleVector();
   SimpleVector(const int& size);
   SimpleVector(const SimpleVector<T>& other);
+  SimpleVector(SimpleVector<T>&& other);
   ~SimpleVector();
   
         SimpleVector<T>  operator -  () const;
@@ -49,6 +51,7 @@ public:
         SimpleVector<T>  operator /  (const T& other) const;
   const SimpleVector<T>& operator /= (const T& other);
         SimpleVector<T>& operator =  (const SimpleVector<T>& other);
+        SimpleVector<T>& operator =  (SimpleVector<T>&& other);
         T                dot         (const SimpleVector<T>& other) const;
         T&               operator [] (const int& idx);
   const T                operator [] (const int& idx) const;
@@ -79,6 +82,13 @@ template <typename T> SimpleVector<T>::SimpleVector(const SimpleVector<T>& other
 #endif
   for(int i = 0; i < esize; i ++)
     entity[i] = other.entity[i];
+  return;
+}
+
+template <typename T> SimpleVector<T>::SimpleVector(SimpleVector<T>&& other) {
+  esize  = move(other.esize);
+  entity = move(other.entity);
+  other.entity = 0;
   return;
 }
 
@@ -157,6 +167,17 @@ template <typename T> SimpleVector<T>& SimpleVector<T>::operator = (const Simple
   return *this;
 }
 
+template <typename T> SimpleVector<T>& SimpleVector<T>::operator = (SimpleVector<T>&& other) {
+  if(entity == other.entity && esize == other.esize)
+    return *this;
+  esize  = move(other.esize);
+  delete[] entity;
+  entity = move(other.entity);
+  other.esize  = 0;
+  other.entity = NULL;
+  return *this;
+}
+
 template <typename T> const SimpleVector<T>& SimpleVector<T>::operator /= (const T& other) {
 #if defined(_OPENMP)
 #pragma omp simd
@@ -210,6 +231,7 @@ public:
   SimpleMatrix();
   SimpleMatrix(const int& rows, const int& cols);
   SimpleMatrix(const SimpleMatrix<T>& other);
+  SimpleMatrix(SimpleMatrix<T>&& other);
   ~SimpleMatrix();
   
         SimpleMatrix<T>  operator -  () const;
@@ -225,6 +247,7 @@ public:
         SimpleMatrix<T>  operator /  (const T& other) const;
   const SimpleMatrix<T>& operator /= (const T& other);
         SimpleMatrix<T>& operator =  (const SimpleMatrix<T>& other);
+        SimpleMatrix<T>& operator =  (SimpleMatrix<T>&& other);
         T&               operator () (const int& y, const int& x);
   const T                operator () (const int& y, const int& x) const;
         SimpleVector<T>& row(const int& y);
@@ -265,6 +288,14 @@ template <typename T> SimpleMatrix<T>::SimpleMatrix(const SimpleMatrix<T>& other
 #endif
   for(int i = 0; i < erows; i ++)
     entity[i] = other.entity[i];
+  return;
+}
+
+template <typename T> SimpleMatrix<T>::SimpleMatrix(SimpleMatrix<T>&& other) {
+  erows  = move(other.erows);
+  ecols  = move(other.ecols);
+  entity = move(other.entity);
+  other.entity = NULL;
   return;
 }
 
@@ -390,6 +421,19 @@ template <typename T> SimpleMatrix<T>& SimpleMatrix<T>::operator = (const Simple
   return *this;
 }
 
+template <typename T> SimpleMatrix<T>& SimpleMatrix<T>::operator = (SimpleMatrix<T>&& other) {
+  if(entity == other.entity && erows == other.erows && ecols == other.ecols)
+    return *this;
+  erows  = move(other.erows);
+  ecols  = move(other.ecols);
+  delete[] entity;
+  entity = move(other.entity);
+  other.erows  = 0;
+  other.ecols  = 0;
+  other.entity = NULL;
+  return *this;
+}
+
 template <typename T> T& SimpleMatrix<T>::operator () (const int& y, const int& x) {
   assert(0 <= y && y < erows && entity);
   return entity[y][x];
@@ -472,6 +516,7 @@ template <typename T> SimpleVector<T> SimpleMatrix<T>::solve(SimpleVector<T> oth
   for(int i = erows - 1; 0 <= i; i --) {
     const T buf(other[i] / work.entity[i][i]);
     if(!isfinite(buf) || isnan(buf)) {
+      throw "Non full rank matrix SimpleMatrix::solve";
       assert(!isfinite(work.entity[i][i] / other[i]) || isnan(work.entity[i][i] / other[i]));
       continue;
     }
@@ -533,7 +578,7 @@ template <typename T> void SimpleMatrix<T>::resize(const int& rows, const int& c
 }
 
 
-template <typename T> class LP {
+template <typename T> class Linner {
 public:
 #if defined(WITHOUT_EIGEN)
   typedef SimpleMatrix<T> Mat;
@@ -543,33 +588,16 @@ public:
   typedef Eigen::Matrix<T, Eigen::Dynamic, 1> Vec;
 #endif
   
-  LP();
-  ~LP();
+  Linner();
+  ~Linner();
   
-  // <c, x> -> obj, Ax <= b.
-  bool minimize(bool* fix_partial, const Mat& A, const Vec& b, const Vec& c) const;
-  bool minimize(Vec& rvec, const Mat& A, const Vec& b, const Vec& c) const;
-  bool minimize(bool* fix_partial, Vec& rvec, const Mat& A, const Vec& b, const Vec& c) const;
-  bool maximize(bool* fix_partial, const Mat& A, const Vec& b, const Vec& c) const;
-  bool maximize(Vec& rvec, const Mat& A, const Vec& b, const Vec& c) const;
-  bool maximize(bool* fix_partial, Vec& rvec, const Mat& A, const Vec& b, const Vec& c) const;
   bool inner(bool* fix_partial, const Mat& A, const Vec& b) const;
   bool inner(Vec& rvec, const Mat& A, const Vec& b) const;
   bool inner(bool* fix_partial, Vec& rvec, const Mat& A, const Vec& b) const;
-  
   bool isErrorMargin(const Mat& A, const Vec& b, const Vec& x, const bool& disp = true) const;
   
 private:
-  bool optimize(bool* fix_partial, Vec& rvec, const Mat& A, const Vec& b, const Vec& c) const;
-  bool optimizeNullSpace(bool* fix_partial, Vec& rvec, const Mat& Pt, Vec& b, const int& cidx) const;
-  
-  T    errorCheck(const Mat& A, const Vec& b) const;
-  
-  bool gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& Pt, Vec b, const Vec& one, int& n_fixed) const;
-  Vec  giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const;
-  bool checkInner(const Vec& on, const Vec& normalize, const int& max_idx) const;
-  int  getMax(const char* checked, const Vec& on, const Vec& normalize) const;
-  
+  bool gainVectors(bool* fix, bool* checked, Vec& rvec, const Mat& Pt, const Vec& b) const;
   Mat  roughQR(const Mat& At) const;
 
   T threshold_feas;
@@ -577,251 +605,121 @@ private:
   T threshold_loop;
   T threshold_inner;
   T err_error;
-  T largest_intercept;
-  T largest_opt;
-  int n_opt_steps;
+  T large;
 };
 
-template <typename T> LP<T>::LP()
-{
+template <typename T> Linner<T>::Linner() {
   // error rate for orthogonalized b.
-  threshold_feas    = numeric_limits<T>::epsilon() * T(32);
+  threshold_feas    = numeric_limits<T>::epsilon() * T(8);
+  //threshold_feas    = T(1) >> short(62);
   
   // if SimpleVector<T>::solve fails, increase this:
-  threshold_p0      = sqrt(threshold_feas);
+  threshold_p0      = pow(threshold_feas, T(2) / T(3));
   
   // is we gain inner or not:
-  threshold_inner   = sqrt(threshold_p0);
+  threshold_inner   = pow(threshold_feas, T(1) / T(3));
   
   // last stage error rate:
   err_error         = sqrt(threshold_inner);
   
-  // box constraints that Px<=b, not b<=Px:
-  largest_intercept = T(1) / sqrt(err_error);
-
-  // largest optimized value ratio to be calculated:
-  largest_opt       = sqrt(largest_intercept);
+  // guarantee b is positive.
+  large             = T(1) / sqrt(err_error);
   
-  assert(sqrt(err_error) < T(1) && largest_opt > T(1));
+  assert(sqrt(err_error) < T(1) && T(1) < large);
   
   // XXX: Please configure me first.
   // if threshold_loop < 0, extends some regions.
   threshold_loop    = T(0);
   
-  // something bugly with QD library.
-  n_opt_steps       = 2 * int(log(largest_opt) / log(T(2))) + 1;
   return;
 }
 
-template <typename T> LP<T>::~LP()
-{
+template <typename T> Linner<T>::~Linner() {
   return;
 }
 
-template <typename T> bool LP<T>::minimize(bool* fix_partial, const Mat& A, const Vec& b, const Vec& c) const
-{
-  Vec rvec;
-  return minimize(fix_partial, rvec, A, b, c);
-}
-
-template <typename T> bool LP<T>::minimize(Vec& rvec, const Mat& A, const Vec& b, const Vec& c) const
-{
-  return minimize(0, rvec, A, b, c);
-}
-
-template <typename T> bool LP<T>::minimize(bool* fix_partial, Vec& rvec, const Mat& A, const Vec& b, const Vec& c) const
-{
-  return optimize(fix_partial, rvec, A, b, c);
-}
-
-template <typename T> bool LP<T>::maximize(bool* fix_partial, const Mat& A, const Vec& b, const Vec& c) const
-{
-  Vec rvec;
-  return maximize(fix_partial, rvec, A, b, c);
-}
-
-template <typename T> bool LP<T>::maximize(Vec& rvec, const Mat& A, const Vec& b, const Vec& c) const
-{
-  return maximize(0, rvec, A, b, c);
-}
-
-template <typename T> bool LP<T>::maximize(bool* fix_partial, Vec& rvec, const Mat& A, const Vec& b, const Vec& c) const
-{
-  return optimize(fix_partial, rvec, A, b, - c);
-}
-
-template <typename T> bool LP<T>::inner(bool* fix_partial, const Mat& A, const Vec& b) const
-{
+template <typename T> bool Linner<T>::inner(bool* fix_partial, const Mat& A, const Vec& b) const {
   Vec rvec;
   return inner(fix_partial, rvec, A, b);
 }
 
-template <typename T> bool LP<T>::inner(Vec& rvec, const Mat& A, const Vec& b) const
-{
+template <typename T> bool Linner<T>::inner(Vec& rvec, const Mat& A, const Vec& b) const {
   return inner(0, rvec, A, b);
 }
 
-template <typename T> bool LP<T>::inner(bool* fix_partial, Vec& rvec, const Mat& A, const Vec& b) const
-{
-  Vec c(A.cols());
-  for(int i = 0; i < c.size(); i ++)
-    c[i] = T(0);
-  return optimize(fix_partial, rvec, A, b, c);
-}
-
-template <typename T> bool LP<T>::optimize(bool* fix_partial, Vec& rvec, const Mat& A, const Vec& b, const Vec& c) const
-{
-  assert(A.cols() == c.size() && A.rows() == b.size() && 0 < c.size() && 0 < b.size());
+template <typename T> bool Linner<T>::inner(bool* fix_partial, Vec& rvec, const Mat& A, const Vec& b) const {
+  assert(A.rows() == b.size() && 0 < A.cols() && 0 < b.size());
   // cout << A << endl << b << endl << c.transpose() << endl;
   cerr << " (" << A.rows() << ", " << A.cols() << ")";
-  rvec = Vec(c.size());
-  for(int i = 0; i < A.rows(); i ++)
-    if(fix_partial) fix_partial[i] = false;
-  
-  Mat AA(A.rows() + 1 + A.cols() * 2, A.cols());
-  Vec bb(b.size() + 1 + A.cols() * 2);
+  Mat AA(A.rows() + A.cols() * 2, A.cols());
+  Vec bb(AA.rows());
   for(int i = 0; i < A.rows(); i ++) {
     AA.row(i) = A.row(i);
     bb[i]     = b[i];
   }
-  
-  // alpha t - <c, tx> <= 0 <=> alpha <= <c, x> with scaled x.
-#if WITHOUT_EIGEN
-  AA.row(A.rows()) = c;
-#else
-  AA.row(A.rows()) = c.transpose();
-#endif
-  bb[A.rows()]     = T(0);
   for(int i = 0; i < A.cols() * 2; i ++) {
     for(int j = 0; j < A.cols(); j ++)
-      AA(A.rows() + 1 + i, j) = T(0);
-    bb[A.rows() + 1 + i]      = T(0);
+      AA(A.rows() + i, j) = i / 2 == j ? (i % 2 ? - T(1) : T(1)) : T(0);
+    bb[A.rows()] = T(0);
   }
-  cerr << " err_error(" << errorCheck(AA, bb) << ")";
   
-  // guarantee that b is positive.
-  T rbb(0);
+  T M(1), m(1);
   for(int i = 0; i < A.rows(); i ++) {
-    const T lbb(abs(b[i]) / sqrt(A.row(i).dot(A.row(i))));
-    if(isfinite(lbb) && !isnan(lbb))
-      rbb = max(rbb, lbb);
+    for(int j = 0; j < A.cols(); j ++) {
+      const T buf(abs(A(i, j)));
+      if(buf != T(0)) {
+        M = max(M, buf);
+        m = min(m, buf);
+      }
+      assert(isfinite(buf) && !isnan(buf));
+    }
+    const T buf(abs(b[i]));
+    if(buf != T(0)) {
+      M = max(M, buf);
+      m = min(m, buf);
+    }
+    assert(isfinite(buf) && !isnan(buf));
   }
-  const T intercept(largest_intercept * rbb / sqrt(T(2 * A.cols())));
-  cerr << " intercept(" << rbb / intercept << ")";
-  for(int i = 0; i < A.cols() * 2; i ++) {
-    AA(A.rows() + 1 + i, i / 2) = (i % 2 == 0 ? T(1) : - T(1));
-    bb[A.rows() + 1 + i]        = intercept;
-  }
-  if(c.dot(c) != T(0))
-    bb[A.rows()] = min(largest_opt * rbb, intercept);
+  cerr << " err_error(" << (M / m) * sqrt(err_error) << ")" << flush;
+  for(int i = A.rows(); i < AA.rows(); i ++)
+    bb[i] = max(T(1), sqrt(b.dot(b))) * large;
   
-  for(int i = 0; i < AA.rows(); i ++) {
-    assert(isfinite(bb[i]) && !isnan(bb[i]));
-    for(int j = 0; j < AA.cols(); j ++)
-      assert(isfinite(AA(i, j)) && !isnan(AA(i, j)));
-  }
-  cerr << " .";
-  
-  // <c, x> -> obj, Q R x <= b.
-  // O(mn * max(m, n))
-  Mat Qt(roughQR(AA.transpose()));
-  cerr << "Q" << flush;
-  Mat R(Qt * AA);
-  cerr << "R" << flush;
-
-  // optimize <co_c, x'>, co_A [x' 0] <= b. co_A^t co_A = I, in O(mn^2L).
   bool* bfix_partial = new bool[AA.rows()];
-  for(int i = 0; i < AA.rows(); i ++)
-    bfix_partial[i] = false;
-  (void)optimizeNullSpace(bfix_partial, rvec, Qt, bb, A.rows());
+  bool* checked = new bool[AA.rows()];
+  const Mat Pt(roughQR(AA.transpose()));
+  cerr << "Q" << flush;
+  const Mat R(Pt * AA);
+  cerr << "R" << flush;
+  rvec = Vec(A.cols());
+  const bool f_inner(gainVectors(bfix_partial, checked, rvec, Pt, bb));
   if(fix_partial)
     for(int i = 0; i < A.rows(); i ++)
       fix_partial[i] = bfix_partial[i];
   delete[] bfix_partial;
-  
-  cerr << " NULL" << flush;
-  
-  // pull original solvee.
+  delete[] checked;
 #if defined(WITHOUT_EIGEN)
   rvec = R.solve(rvec);
 #else
   rvec = R.inverse() * rvec;
 #endif
-
-  cerr << " INV" << endl;
-  return isErrorMargin(A, b, rvec, true);
+  cerr << "I" << flush;
+  return f_inner || isErrorMargin(A, b, rvec, true);
 }
 
-template <typename T> bool LP<T>::optimizeNullSpace(bool* fix_partial, Vec& rvec, const Mat& Pt, Vec& b, const int& cidx) const
-{
-  assert(Pt.cols() == b.size() && 0 < Pt.rows() && Pt.rows() < Pt.cols());
-  
-  // to avoid stack underflow.
-  char* checked = new char[b.size()];
-  Vec   one(b.size());
+template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec& rvec, const Mat& Pt, const Vec& b) const {
+  rvec = Vec(Pt.rows());
 #if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
+#pragma omp simd
 #endif
-  for(int i = 0; i < one.size(); i ++)
-    one[i] = T(1);
-  
-  int  n_fixed;
-  if(Pt.col(cidx).dot(Pt.col(cidx)) <= T(0)) {
-    (void)gainVectors(fix_partial, checked, rvec, Pt, b, one, n_fixed);
-    delete[] checked;
-    return isErrorMargin(Pt.transpose(), b, rvec, true);
-  }
-  
-  // get optimal value.
-  T offset(b[cidx]);
-  T step(- offset * T(2));
-  for(int i = 0; i < n_opt_steps; i ++) {
-    b[cidx] = step + offset;
-    if(!isfinite(b[cidx]) || isnan(b[cidx]))
-      break;
-    if(gainVectors(fix_partial, checked, rvec, Pt, b, one, n_fixed))
-      offset += step;
-    step /= T(2);
-  }
-  cerr << endl;
-  
-  b[cidx] = offset;
-  (void)gainVectors(fix_partial, checked, rvec, Pt, b, one, n_fixed);
-  delete[] checked;
-  return isErrorMargin(Pt.transpose(), b, rvec, true);
-}
-
-template <typename T> T LP<T>::errorCheck(const Mat& A, const Vec& b) const
-{
-  // accuracy check.
-  T max(1), min(1);
-  for(int i = 0; i < A.rows(); i ++) {
-    for(int j = 0; j < A.cols(); j ++) {
-      const T buf(abs(A(i, j)));
-      if(buf > T(0)) {
-        if(buf <= min)
-          min = buf;
-        if(max <= buf)
-          max = buf;
-      }
-    }
-    const T buf(abs(b[i]));
-    if(buf > T(0)) {
-      if(buf <= min)
-        min = buf;
-      if(max <= buf)
-        max = buf;
-    }
-  }
-  return (max / min) * sqrt(err_error);
-}
-
-template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rvec, const Mat& Pt, Vec b, const Vec& one, int& n_fixed) const
-{
+  for(int i = 0; i < rvec.size(); i ++)
+    rvec[i] = T(0);
+  int n_fixed;
+  Vec one(b.size());
 #if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
+#pragma omp simd
 #endif
   for(int i = 0; i < Pt.cols(); i ++) {
+    one[i]     = T(1);
     fix[i]     = false;
     checked[i] = false;
   }
@@ -833,10 +731,9 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
   Vec bb(b - Pt.transpose() * (Pt * b));
 #endif
   if(sqrt(bb.dot(bb)) <= threshold_feas * sqrt(b.dot(b))) {
-    cerr << "0" << flush;
-    for(int i = 0; i < bb.size() - Pt.rows() * 2 - 1; i ++)
+    for(int i = 0; i < bb.size() - 1; i ++)
       bb[i] = sqrt(Pt.col(i).dot(Pt.col(i)));
-    for(int i = bb.size() - Pt.rows() * 2 - 1; i < bb.size(); i ++)
+    for(int i = bb.size() - 1; i < bb.size(); i ++)
       bb[i] = b[i];
 #if defined(WITHOUT_EIGEN)
     const Vec bbb(bb - Pt.projectionPt(bb));
@@ -844,50 +741,16 @@ template <typename T> bool LP<T>::gainVectors(bool* fix, char* checked, Vec& rve
     const Vec bbb(bb - Pt.transpose() * (Pt * bb));
 #endif
     if(sqrt(bbb.dot(bbb)) <= threshold_feas * sqrt(bb.dot(bb))) {
-      rvec  = Pt * (bbb / err_error + b + bb);
-      cerr << " Second trivial matrix.";
-      return true;
+      rvec  = Pt * (b - bb - bbb * large);
+      cerr << "t(" << rvec[0] << ")" << flush;
+      return isErrorMargin(Pt.transpose(), b, rvec, ! false);
     }
     bb  = bbb;
+    std::cerr << "0" << flush;
   }
-  
-  rvec = giantStep(fix, checked, Pt, - bb, n_fixed, one);
-  cerr << flush;
-  if(n_fixed == Pt.rows()) {
-    cerr << "F";
-    Mat F(Pt.rows(), Pt.rows());
-    Vec f(Pt.rows());
-    for(int i = 0, j = 0; i < Pt.cols() && j < f.size(); i ++)
-      if(fix[i]) {
-        const T ratio(sqrt(Pt.col(i).dot(Pt.col(i)) + b[i] * b[i]));
-        F.row(j) = Pt.col(i) / ratio;
-        f[j]     = b[i]      / ratio;
-        j ++;
-      }
-#if defined(WITHOUT_EIGEN)
-    rvec = F.solve(f);
-#else
-    rvec = F.inverse() * f;
-#endif
-  } else {
-    cerr << "g";
-    rvec = Pt * (rvec + b);
-  }
-  cerr << flush;
-  for(int i = 0; i < rvec.size(); i ++)
-    if(!isfinite(rvec[i]) || isnan(rvec[i]))
-      return false;
-  // XXX: Pt.transpose can be cached.
-  return isErrorMargin(Pt.transpose(), b, rvec, false);
-}
-
-#if defined(WITHOUT_EIGEN)
-template <typename T> SimpleVector<T> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const
-#else
-template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool* fix, char* checked, Mat Pverb, Vec mbb, int& n_fixed, const Vec& one) const
-#endif
-{
+  Vec mbb(- bb);
   const T normb0(sqrt(mbb.dot(mbb)));
+  Mat Pverb(Pt);
   Vec on(one.size());
   Vec norm(one.size());
   Vec deltab(one.size());
@@ -907,10 +770,9 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
 #pragma omp parallel for schedule(static, 1)
 #endif
     for(int j = 0; j < Pverb.cols(); j ++) {
-      norm[j]     = sqrt(Pverb.col(j).dot(Pverb.col(j)));
-      checked[j]  = (fix[j] || norm[j] <= threshold_p0) ? 1 : 0;
+      norm[j]    = Pverb.col(j).dot(Pverb.col(j));
+      checked[j] = fix[j] || norm[j] <= threshold_p0;
     }
-    norm  /= sqrt(norm.dot(norm));
     // extend b with threshold_loop. N.B. mbb = - b'.
     mb     = mbb + norm * normb0 * threshold_loop;
 #if defined(WITHOUT_EIGEN)
@@ -924,24 +786,28 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
     
     // O(mn^2) check for inner or not.
 #if defined(WITHOUT_EIGEN)
-    on = Pverb.projectionPt(- one) + mb * mb.dot(- one) / mb.dot(mb);
+    on = Pverb.projectionPt(- one) + mb * mb.dot(- one);
 #else
-    on = Pverb.transpose() * (Pverb * (- one)) + mb * mb.dot(- one) / mb.dot(mb);
+    on = Pverb.transpose() * (Pverb * (- one)) + mb * mb.dot(- one);
 #endif
-    on /= sqrt(on.dot(on));
-    
+  
     // N.B. This might be rewrited as fix once with sorted fidxs.
     //   When the hypothesis is true, next loop must fix or get inner vector.
     //   Also, it takes O(lg(mn)) time order for this function.
     //   But to do so, theoretical proof is needed and it seems not
     //   because we use mb with little extended and its norm is in error order.
-    const int fidx = getMax(checked, on, norm);
-    if(fidx >= one.size()) {
-      cerr << " GiantStep: no more direction.";
-      break;
-    } else if(checkInner(on, norm, fidx)) {
+    int fidx(0);
+    for( ; fidx < on.size(); fidx ++)
+      if(!checked[fidx])
+        break;
+    for(int j = fidx + 1; j < on.size(); j ++)
+      if(!checked[j] && on[fidx] / norm[fidx] < on[j] / norm[j])
+        fidx = j;
+    if(fidx >= one.size())
+      assert(0 && "rank is not full : should not be reached");
+    else if(on[fidx] / norm[fidx] <= threshold_inner) {
       n_fixed --;
-      on /= abs(mb.dot(on));
+      on /= norm[fidx];
       break;
     }
     
@@ -964,68 +830,61 @@ template <typename T> Eigen::Matrix<T, Eigen::Dynamic, 1> LP<T>::giantStep(bool*
     }
     fix[fidx] = true;
   }
-  return on * ratiob + deltab;
+  if(n_fixed == Pt.rows()) {
+    Mat F(Pt.rows(), Pt.rows());
+    Vec f(Pt.rows());
+    for(int i = 0, j = 0; i < Pt.cols() && j < f.size(); i ++)
+      if(fix[i]) {
+        const T ratio(sqrt(Pt.col(i).dot(Pt.col(i)) + b[i] * b[i]));
+        F.row(j) = Pt.col(i) / ratio;
+        f[j]     = b[i]      / ratio;
+        j ++;
+      }
+#if defined(WITHOUT_EIGEN)
+    rvec = F.solve(f);
+#else
+    rvec = F.inverse() * f;
+#endif
+    cerr << "F" << flush;
+  } else {
+    rvec = Pt * (on * ratiob + deltab + b);
+    cerr << "g" << flush;
+  }
+  return isErrorMargin(Pt.transpose(), b, rvec, ! false);
 }
 
-template <typename T> bool LP<T>::checkInner(const Vec& on, const Vec& normalize, const int& max_idx) const
-{
-  assert(0 <= max_idx && max_idx < on.size());
-  return on[max_idx] / normalize[max_idx] <= threshold_inner;
-}
-
-template <typename T> int LP<T>::getMax(const char* checked, const Vec& on, const Vec& normalize) const {
-  int result = 0;
-  for(; result < on.size(); result ++)
-    if(!checked[result])
-      break;
-  for(int j = result + 1; j < on.size(); j ++)
-    if(!checked[j] && on[result] / normalize[result] < on[j] / normalize[j])
-      result = j;
-  if(result < on.size() && checked[result])
-    result = on.size();
-  return result;
-}
-
-template <typename T> bool LP<T>::isErrorMargin(const Mat& A, const Vec& b, const Vec& x, const bool& disp) const
-{
+template <typename T> bool Linner<T>::isErrorMargin(const Mat& A, const Vec& b, const Vec& x, const bool& disp) const {
   T result(0);
   const Vec err(A * x - b);
-  for(int i = 0; i < b.size(); i ++)
-    if(!isfinite(err[i]) || isnan(err[i]) ||
-       result < err[i]) result = err[i];
+  for(int i = 0; i < b.size(); i ++) {
+    //const auto lerr(err[i] / sqrt(A.row(i).dot(A.row(i))));
+    const auto& lerr(err[i]);
+    if(!isfinite(lerr) || isnan(lerr) ||
+       result < lerr) result = lerr;
+  }
   if(disp)
-    cerr << " errorMargin?(" << sqrt(x.dot(x)) << ", " << sqrt(b.dot(b)) << ", " << result << ")";
-  return isfinite(result)         && !isnan(result) &&
-         isfinite(x.dot(x))       && !isnan(x.dot(x)) &&
-         isfinite(sqrt(x.dot(x))) && !isnan(sqrt(x.dot(x))) &&
-         (sqrt(x.dot(x)) > err_error ? result / sqrt(x.dot(x)) : result) <=
-           err_error &&
-         sqrt(x.dot(x)) < sqrt(b.dot(b)) * largest_intercept;
+    cerr << " errorMargin?(" << result / max(T(1), sqrt(x.dot(x))) << ")";
+  return isfinite(result)   && !isnan(result)   &&
+         isfinite(x.dot(x)) && !isnan(x.dot(x)) &&
+         ((x.dot(x) == T(0) && result == T(0)) ||
+          (x.dot(x) != T(0) && result / sqrt(x.dot(x)) <= err_error));
 }
 
-#if defined(WITHOUT_EIGEN)
-template <typename T> SimpleMatrix<T> LP<T>::roughQR(const Mat& At) const {
-#else
-template <typename T> Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> LP<T>::roughQR(const Mat& At) const {
-#endif
+template <typename T> typename Linner<T>::Mat Linner<T>::roughQR(const Mat& At) const {
   Mat Q(At.rows(), At.cols());
   for(int i = 0; i < Q.rows(); i ++)
     for(int j = 0; j < Q.cols(); j ++)
       Q(i, j) = T(0);
-  Mat work(At);
   for(int i = 0; i < At.rows(); i ++) {
-    // N.B.
-    // This can be rewrited as divide and conquere in this case (max rank).
-    // So it takes O(lg(n)*lg(mn)) time order when all variables
-    // are parallelized.
+    // N.B. in this case, At is full rank.
 #if defined(WITHOUT_EIGEN)
-    work.row(i) -= Q.projectionPt(work.row(i));
+    const Vec work(At.row(i) - Q.projectionPt(At.row(i)));
 #else
-    work.row(i) -= (Q.transpose() * (Q * work.row(i).transpose())).transpose();
+    const Vec work(At.row(i) - (Q.transpose() * (Q * At.row(i).transpose())).transpose());
 #endif
     // generally, assert norm > error is needed.
     // in this case, not.
-    Q.row(i) = work.row(i) / sqrt(work.row(i).dot(work.row(i)));
+    Q.row(i) = work / sqrt(work.dot(work));
   }
   return Q;
 }

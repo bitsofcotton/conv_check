@@ -104,7 +104,7 @@ int main(int argc, char* argv[])
   
   Vec  result;
   bool* fix_partial = new bool[A.rows()];
-  LP<num_t> lp;
+  Linner<num_t> lp;
   bool feas = lp.inner(fix_partial, result, A, b);
   
   for(int i = 0; i < result.size(); i ++)
