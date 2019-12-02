@@ -8,11 +8,11 @@ For older information, please refer http://sourceforge.net/projects/convcheck/ .
 Actually freezed.
 
 # Tips
-The shown string after 'err_error' or 'intercept' is the value depends on the problem and accuracy.
+The shown string after 'err_error' is the value depends on the problem and accuracy.
 If the value >> 0 (especially >= 1), it is hard to solve in the accuracy.
 If feasible region of the original problem is too tight, there's a possibility fails to get feasible point.
 If then, please extend little more feasible region by changing threshold_loop parameter.  
-And, largest_intercept can be tiny value for the problem with medium accuracy, so please configure this first.  
+And, parameter large can be tiny value for the problem with medium accuracy, so please configure this first.  
 Include guard definition this uses seems high probability to conflict, please patch before to use.
 
 # Bugs
@@ -21,20 +21,13 @@ this program checks will be bugly, If a original problem is good scaled and exte
 And, when we're gaining optimal value, in the parameter initialize function, we assume the largest ratio of
 optimal value and variable upper (lower) bound. So if we gained seems to be not optimal, please configure the parameters.
 
-# Specfcaion
-LP::maxmize andLP::mnmize function is unstable because we don't use proper initial value.
-So it is considerable that once inner point, then, expand method seems to be stable but it is not needed by
-purpose of this program, so it is not implemented.
-
 # Parameters
-We shall configure the parameters in LP<T>::LP() in konbu.hh.
+We shall configure the parameters in Linner<T>::Linner() in konbu.hh.
 * threshold_feas   : QR decomposition errors.
 * threshold_p0     : each loop P matrix errors.
 * threshold_loop   : [-b+1&epsilon;,P][t,x]&leq;b, &epsilon;
 * threshold_inner  : each loop checking inner or not.
-* largest_intercept: box constraints that Ax&leq;b fix, not Ax&geq;b.
-* largest_opt      : assuming optimal value max ratio.
-* n_opt_steps      : number of loops to find optimal values.
+* large            : box constraints that Ax&leq;b fix, not Ax&geq;b.
 
 # Context
 Japanese Patent Draft : JP2014089683 . 
@@ -77,7 +70,7 @@ So we gain P^t z_0 with fixed intercept.
     ...
     Vec result;
     bool fix_partial[A.rows()];
-    LP<num_t> lp;
+    Linner<num_t> lp;
     bool feas = lp.inner(fix_partial, result, A, b);
     // if you use with QD,    fpu_fix_end(&old_cw); is needed.
 
