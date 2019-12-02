@@ -8,7 +8,7 @@ CXXFLAGS+=	-Ofast -mtune=native
 #CXXFLAGS+=	-g2 -O2 -Wall
 #CXXFLAGS+=	-fopenmp -lgomp
 #CXXFLAGS+=	-pg
-LDFLAGS=	-lstdc++
+LDFLAGS=	-lc++
 #LDFLAGS+=	-L/usr/local/lib -lmpfr -lgmp
 #LDFLAGS+=	-L/usr/local/lib -lqd -lc++
 
@@ -21,6 +21,9 @@ CXXFLAGS+=	-DACC_LDOUBLE
 #CXXFLAGS+=	-DACC_QD_QDOUBLE
 #CXXFLAGS+=	-DACC_GMP=256
 #CXXFLAGS+=	-DACC_GMP=512
+
+# with integer only (too slow)
+#CXXFLAGS+=	-DACC_NO_FLOAT
 
 # Without eigen. do not use this because it costs dramatically long time.
 # N.B. not using with cpu implemented float, it costs slight long time.

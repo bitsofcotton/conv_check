@@ -30,6 +30,7 @@ typedef mpfr::mpreal num_t;
 using mpfr::sqrt;
 using mpfr::pow;
 using mpfr::log;
+using mpfr::isfinite;
 
 #elif defined(ACC_QD_DDOUBLE)
 
@@ -45,9 +46,17 @@ typedef dd_real num_t;
 typedef qd_real num_t;
 #define MANT_DIG DBL_DIG
 
+#elif defined(ACC_NO_FLOAT)
+
+#include <cmath>
+#include <vector>
+#include "ifloat.hh"
+typedef SimpleFloat<uint64_t, DUInt<uint64_t, 64>, 64, short> num_t;
+#define MANT_DIG DBL_DIG
+
 #endif
 
-#if defined(ACC_FLOAT) || defined(ACC_DOUBLE) || defined(ACC_LDOUBLE)
+#if defined(ACC_FLOAT) || defined(ACC_DOUBLE) || defined(ACC_LDOUBLE) || defined(ACC_NO_FLOAT)
 #include <cmath>
 using namespace std;
 using std::numeric_limits;
