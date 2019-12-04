@@ -826,7 +826,7 @@ template <typename T, typename W, int bits, typename U> inline                  
     throw "NaN to convert int";
   if(! deci.m)
     return T(0);
-  if(bits <= deci.e || (U(0) < deci.e && (deci.m <<= deci.e) >> deci.e != deci.m))
+  if(bits <= deci.e || (U(0) < deci.e && (deci.m << deci.e) >> deci.e != deci.m))
     throw "Overflow to convert int.";
   if(deci.e <= - bits)
     return T(0);
