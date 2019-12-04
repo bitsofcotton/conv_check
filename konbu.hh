@@ -770,7 +770,7 @@ template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec&
 #pragma omp parallel for schedule(static, 1)
 #endif
     for(int j = 0; j < Pverb.cols(); j ++) {
-      norm[j]    = Pverb.col(j).dot(Pverb.col(j));
+      norm[j]    = sqrt(Pverb.col(j).dot(Pverb.col(j)));
       checked[j] = fix[j] || norm[j] <= threshold_p0;
     }
     // extend b with threshold_loop. N.B. mbb = - b'.
