@@ -837,7 +837,7 @@ template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec&
       if(fix[i]) {
         const T ratio(sqrt(Pt.col(i).dot(Pt.col(i)) + b[i] * b[i]));
         F.row(j) = Pt.col(i) / ratio;
-        f[j]     = b[i]      / ratio;
+        f[j]     = b[i]      / ratio + threshold_loop;
         j ++;
       }
 #if defined(WITHOUT_EIGEN)
