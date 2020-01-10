@@ -778,21 +778,12 @@ template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec&
   Vec mbb(- bb);
   const auto normb0(sqrt(mbb.dot(mbb)));
   Mat Pverb(Pt);
-  Vec on(one.size());
+  Vec on;
+  Vec deltab;
+  Vec orth;
   Vec norm(one.size());
-  Vec deltab(one.size());
   T   ratiob(1);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-  for(int i = 0; i < norm.size(); i ++) {
-    norm[i]   = T(1);
-    deltab[i] = T(0);
-    on[i]     = T(0);
-  }
-  Vec mb(mbb.size());
-  Vec orth(mbb.size());
-  for(n_fixed = 0 ; n_fixed < Pverb.rows(); n_fixed ++) {
+  for(n_fixed = 0; n_fixed < Pverb.rows(); n_fixed ++) {
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
@@ -801,7 +792,7 @@ template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec&
       checked[j] = fix[j] || norm[j] <= threshold_p0;
     }
     // extend b with threshold_loop. N.B. mbb = - b'.
-    mb  = mbb + norm * normb0 * threshold_loop;
+    Vec mb(mbb + norm * normb0 * threshold_loop);
 #if defined(WITHOUT_EIGEN)
     mb -= (deltab = Pverb.projectionPt(mb));
 #else
@@ -831,9 +822,11 @@ template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec&
     if(fidx >= one.size())
       assert(0 && "rank is not full : should not be reached");
     else if(on[fidx] / norm[fidx] <= threshold_inner) {
-      n_fixed --;
-      on /= norm[fidx];
-      break;
+      on /= sqrt(norm.dot(norm));
+      if(n_fixed < Pverb.rows() - 1) {
+        n_fixed --;
+        break;
+      }
     }
     
     // O(mn^2) over all in this function.
