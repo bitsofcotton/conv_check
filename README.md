@@ -78,7 +78,7 @@ So we gain P^t z_0 with fixed intercept.
 You can also use this program for pattern matching (finding smaller co-space ∞-norm) of Rn to Rn+m function, or, for finding possible solvees of PDEs (with 2013 memo last stage), (even if it is not only one solvee because of restrict equations # but if so, solvee we get in this shall not be useful, region or shape or rank will be useful).
 If we are using 32 bit machine, it is limitted that we can solve the problem smaller than around 8k x 4k matrix (because of index type is integer, in fact, if we're using 8 bytes floating point number, and like most implementation pointer 1 bit for system, and matrix copy on the memory.).  
 If, we run this program with over mn core MPUs, we can gain inner vector in O(n) time order.  
-This program solves the feasibility better if the problem variable range is in certain ranges especially eg. [-&pi, &pi] and normalized.
+This program solves the feasibility better if the problem variable range is in certain ranges especially eg. [-&pi;, &pi;] and normalized.
 And, if we can fix all in once the inner vector instead of fixing one by one, it's O(lg(n)*lg(mn)) time order but is seems not. 
 
 # Another download sites.
