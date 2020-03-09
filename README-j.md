@@ -38,9 +38,6 @@ Makefile を使用するライブラリが適切に通るように変更して�
 オプションには、-DACC_GMP=$bits オプション及び、-DACC_QD_QDOUBLE オプション、または -DACC_DOUBLE オプションなどのうち
 一つを指定してください。また、-DWITHOUT_EIGEN または -DACC_NO_FLOAT オプションは非常に遅いです。
 
-# デモ
-https://services.limpid-intensity.info/konbu.php にあります。
-
 # 証明
 Ax&lt;=b
 
@@ -81,4 +78,4 @@ largest_intercept パラメータをそのように変えることで、(低い�
 # その他のダウンロードサイト
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://files.limpid-intensity.info/
+* https://sites.google.com/view/bitsofcotton/
