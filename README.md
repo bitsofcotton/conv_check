@@ -39,9 +39,6 @@ Freezed.
 Please rewrite Makefile as the libraries enabled.
 There's -DACC_GMP=$bits option or -DACC_QD_QDOUBLE option or -DACC_DOUBLE option, -DWITHOUT_EIGEN option, and compiler options such like -fopenmp, -pg, -I$where_eigen_lives, ...
 
-# Demos
-https://services.limpid-intensity.info/konbu.php is a working sample.
-
 # Proof
 Ax&lt;=b
 
@@ -84,4 +81,4 @@ And, if we can fix all in once the inner vector instead of fixing one by one, it
 # Another download sites.
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://files.limpid-intensity.info/
+* https://sites.google.com/view/bitsofcotton/
