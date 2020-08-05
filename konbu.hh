@@ -228,8 +228,8 @@ template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec&
         fidx = j;
     if(fidx >= one.size())
       assert(0 && "rank is not full : should not be reached");
-    on *= sqrt(norm.dot(norm)) / abs(mb.dot(on)) / norm[fidx];
-    if(on[fidx] <= threshold_inner)
+    on /= abs(mb.dot(on));
+    if(on[fidx] * sqrt(norm.dot(norm)) / norm[fidx] <= threshold_inner)
       break;
     
     // O(mn^2) over all in this function.
