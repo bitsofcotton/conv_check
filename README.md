@@ -1,11 +1,8 @@
 # Konbu Check
 Get feasible point from multiple linear constraints.
 
-This program aims to check and gain the solvee from multiple set of linear constraints in O(mn^2) arithmetic and O(mn) sqrt function operations.
-C++ is needed, and to calculate faster, Eigen library is needed, and to calculate more accurate (N.B. in the most case we need), we may need a gmp library, a mpfr library and a mpfr++ library, or, with certain accuracy calculation, we need a QD library.
-For older information, please refer http://sourceforge.net/projects/convcheck/ .  
-
-Actually freezed.
+This program aims to check and gain the solvee from multiple set of linear constraints in O(mn^2) arithmetic and O(mn) sqrt function operations for m constraints n variable problem.
+We need C++, and to calculate faster, needs Eigen library, and to calculate better accurate (N.B. in the most case we need), we may need a gmp library, a mpfr library and a mpfr++ library, or, with certain accuracy calculation, we need a QD library.
 
 # Tips
 The shown string after 'err_error' is the value depends on the problem and accuracy.
@@ -32,12 +29,9 @@ We shall configure the parameters in Linner<T>::Linner() in konbu.hh.
 # Context
 Japanese Patent Draft : JP2014089683 . 
 
-# Status
-Freezed.
-
 # How to install
 Please rewrite Makefile as the libraries enabled.
-There's -DACC_GMP=$bits option or -DACC_QD_QDOUBLE option or -DACC_DOUBLE option, -DWITHOUT_EIGEN option, and compiler options such like -fopenmp, -pg, -I$where_eigen_lives, ...
+There's -DACC_GMP=$bits option or -DACC_QD_QDOUBLE option or -DACC_DOUBLE option, -D_WITHOUT_EIGEN_ option, and compiler options such like -fopenmp, -pg, -I$where_eigen_lives, ...
 
 # Proof
 Ax&lt;=b
@@ -79,6 +73,8 @@ This program solves the feasibility better if the problem variable range is in c
 And, if we can fix all in once the inner vector instead of fixing one by one, it's O(lg(n)*lg(mn)) time order but is seems not. 
 
 # Another download sites.
+* https://konbu.azurewebsites.net/ (Sample Site)
+* https://sites.google.com/view/bitsofcotton/
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://sites.google.com/view/bitsofcotton/
+

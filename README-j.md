@@ -1,9 +1,7 @@
 # Konbu Check
-複数の線形制約条件から内点を一つとってくるプログラムです。O(mn^2) 回の四則演算及び O(mn) 回の平方根演算が必要になります。
+複数の線形制約条件から内点を一つとってくるプログラムです。m 制約式 n 変数の問題に対して O(mn^2) 回の四則演算及び O(mn) 回の平方根演算が必要になります。
 また、もっと速く計算するためには、Eigen ライブラリが必要です。さらに精度よく計算するためには(ほとんどの場合には必要ですが)、
 mpfr++ ライブラリと付随するライブラリ、または、QD ライブラリが必要です。  
-
-現在実際に開発休止中です。
 
 # Tips
 'err_error' に続く stderr に出力される数値は問題に依存していて、このプログラムがその精度内で解くことが難しいかどうかの指標になります。
@@ -30,13 +28,10 @@ konbu.hh 内の Linner<T>::Linner() は調整可能です。
 # 文脈
 特許出願の JP2014089683 . 
 
-# 開発状態
-凍結中です。
-
 # インストール方法
 Makefile を使用するライブラリが適切に通るように変更してコンパイルしてください。
 オプションには、-DACC_GMP=$bits オプション及び、-DACC_QD_QDOUBLE オプション、または -DACC_DOUBLE オプションなどのうち
-一つを指定してください。また、-DWITHOUT_EIGEN または -DACC_NO_FLOAT オプションは非常に遅いです。
+一つを指定してください。また、-D_WITHOUT_EIGEN_ または -DACC_NO_FLOAT オプションは非常に遅いです。
 
 # 証明
 Ax&lt;=b
@@ -76,6 +71,8 @@ largest_intercept パラメータをそのように変えることで、(低い�
 また、もし一つ一つ固定せずに、一度に次元の数だけ固定できれば、最終的に O(lg(n)*lg(mn)) 時間で実行できるようになる可能性がありますが、望み薄です。
 
 # その他のダウンロードサイト
+* https://konbu.azurewebsites.net/ (Sample Site)
+* https://sites.google.com/view/bitsofcotton/
 * https://ja.osdn.net/projects/conv-check/
 * https://www.sourceforge.net/projects/convcheck/
-* https://sites.google.com/view/bitsofcotton/
+
