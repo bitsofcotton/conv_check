@@ -27,7 +27,7 @@ CXXFLAGS+=	-DACC_LDOUBLE
 
 # Without eigen. do not use this because it costs dramatically long time.
 # N.B. not using with cpu implemented float, it costs slight long time.
-CXXFLAGS+=	-DWITHOUT_EIGEN
+CXXFLAGS+=	-D_WITHOUT_EIGEN_
 
 CLEANFILES+=	konbu
 

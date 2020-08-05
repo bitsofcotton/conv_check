@@ -1,6 +1,6 @@
 /* You can use one of the both BSD 3-Clause License or GNU Lesser General Public License 3.0 for this source. */
 /* BSD 3-Clause License:
- * Copyright (c) 2013 - 2019, kazunobu watatsu.
+ * Copyright (c) 2013 - 2020, kazunobu watatsu.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -14,601 +14,9 @@
 
 #if !defined(_LINEAR_OPT_)
 
-#include <cstdio>
-#include <cstdlib>
-#include <iostream>
-#include <cmath>
-#include <limits>
-#include <assert.h>
-
-#if !defined(WITHOUT_EIGEN)
-#include <Eigen/Core>
-#include <Eigen/Dense>
-using namespace Eigen;
-#endif
-
-using std::cout;
-using std::cerr;
-using std::endl;
-using std::flush;
-using std::move;
-
-template <typename T> class SimpleVector {
-public:
-  inline SimpleVector();
-  inline SimpleVector(const int& size);
-  inline SimpleVector(const SimpleVector<T>& other);
-  inline SimpleVector(SimpleVector<T>&& other);
-  inline ~SimpleVector();
-  
-  inline       SimpleVector<T>  operator -  () const;
-  inline       SimpleVector<T>  operator +  (const SimpleVector<T>& other) const;
-  inline const SimpleVector<T>& operator += (const SimpleVector<T>& other);
-  inline       SimpleVector<T>  operator -  (const SimpleVector<T>& other) const;
-  inline const SimpleVector<T>& operator -= (const SimpleVector<T>& other);
-  inline       SimpleVector<T>  operator *  (const T& other) const;
-  inline const SimpleVector<T>& operator *= (const T& other);
-  inline       SimpleVector<T>  operator /  (const T& other) const;
-  inline const SimpleVector<T>& operator /= (const T& other);
-  inline       SimpleVector<T>& operator =  (const SimpleVector<T>& other);
-  inline       SimpleVector<T>& operator =  (SimpleVector<T>&& other);
-  inline       bool             operator == (const SimpleVector<T>& other) const;
-  inline       bool             operator != (const SimpleVector<T>& other) const;
-  inline       T                dot         (const SimpleVector<T>& other) const;
-  inline       T&               operator [] (const int& idx);
-  inline const T                operator [] (const int& idx) const;
-  inline const int& size() const;
-  inline       void resize(const int& size);
-private:
-  T*  entity;
-  int esize;
-};
-
-template <typename T> inline SimpleVector<T>::SimpleVector() {
-  entity = NULL;
-  esize  = 0;
-}
-
-template <typename T> inline SimpleVector<T>::SimpleVector(const int& size) {
-  assert(0 < size);
-  this->entity = new T[size];
-  this->esize  = size;
-  return;
-}
-
-template <typename T> inline SimpleVector<T>::SimpleVector(const SimpleVector<T>& other) {
-  entity = new T[other.esize];
-  esize  = other.esize;
-#if defined(_OPENMP)
-#pragma omp simd
-#endif
-  for(int i = 0; i < esize; i ++)
-    entity[i] = other.entity[i];
-  return;
-}
-
-template <typename T> inline SimpleVector<T>::SimpleVector(SimpleVector<T>&& other) {
-  esize  = move(other.esize);
-  entity = move(other.entity);
-  other.entity = 0;
-  return;
-}
-
-template <typename T> inline SimpleVector<T>::~SimpleVector() {
-  delete[] entity;
-  entity = NULL;
-  return;
-}
-
-template <typename T> inline SimpleVector<T> SimpleVector<T>::operator - () const {
-  SimpleVector<T> res(esize);
-#if defined(_OPENMP)
-#pragma omp simd
-#endif
-  for(int i = 0; i < esize; i ++)
-    res.entity[i] = - entity[i];
-  return res;
-}
-
-template <typename T> inline SimpleVector<T> SimpleVector<T>::operator + (const SimpleVector<T>& other) const {
-  auto res(*this);
-  return res += other;
-}
-
-template <typename T> inline const SimpleVector<T>& SimpleVector<T>::operator += (const SimpleVector<T>& other) {
-  assert(esize == other.esize && entity && other.entity);
-#if defined(_OPENMP)
-#pragma omp simd
-#endif
-  for(int i = 0; i < esize; i ++)
-    entity[i] += other.entity[i];
-  return *this;
-}
-
-template <typename T> inline SimpleVector<T> SimpleVector<T>::operator - (const SimpleVector<T>& other) const {
-  auto res(*this);
-  return res -= other;
-}
-
-template <typename T> inline const SimpleVector<T>& SimpleVector<T>::operator -= (const SimpleVector<T>& other) {
-  return *this += - other;
-}
-
-template <typename T> inline SimpleVector<T> SimpleVector<T>::operator * (const T& other) const {
-  auto res(*this);
-  return res *= other;
-}
-
-template <typename T> inline const SimpleVector<T>& SimpleVector<T>::operator *= (const T& other) {
-#if defined(_OPENMP)
-#pragma omp simd
-#endif
-  for(int i = 0; i < esize; i ++)
-    entity[i] *= other;
-  return *this;
-}
-
-template <typename T> inline SimpleVector<T> SimpleVector<T>::operator / (const T& other) const {
-  auto res(*this);
-  return res /= other;
-}
-
-template <typename T> inline SimpleVector<T>& SimpleVector<T>::operator = (const SimpleVector<T>& other) {
-  if(entity == other.entity && esize == other.esize)
-    return *this;
-  if(esize != other.esize) {
-    delete[] entity;
-    entity = new T[other.esize];
-  }
-  esize = other.esize;
-#if defined(_OPENMP)
-#pragma omp simd
-#endif
-  for(int i = 0; i < esize; i ++)
-    entity[i] = other.entity[i];
-  return *this;
-}
-
-template <typename T> inline SimpleVector<T>& SimpleVector<T>::operator = (SimpleVector<T>&& other) {
-  if(entity == other.entity && esize == other.esize)
-    return *this;
-  esize  = move(other.esize);
-  delete[] entity;
-  entity = move(other.entity);
-  other.esize  = 0;
-  other.entity = NULL;
-  return *this;
-}
-
-template <typename T> inline bool SimpleVector<T>::operator == (const SimpleVector<T>& other) const {
-  return ! (*this != other);
-}
-
-template <typename T> inline bool SimpleVector<T>::operator != (const SimpleVector<T>& other) const {
-  assert(esize == other.esize && entity && other.entity);
-  for(int i = 0; i < esize; i ++)
-    if(entity[i] != other.entity[i])
-      return true;
-  return false;
-}
-
-template <typename T> inline const SimpleVector<T>& SimpleVector<T>::operator /= (const T& other) {
-#if defined(_OPENMP)
-#pragma omp simd
-#endif
-  for(int i = 0; i < esize; i ++)
-    entity[i] /= other;
-  return *this;
-}
-
-template <typename T> inline T SimpleVector<T>::dot(const SimpleVector<T>& other) const {
-  assert(esize == other.esize && entity && other.entity);
-  T res(0);
-  SimpleVector<T> work(other.size());
-#if defined(_OPENMP)
-#pragma omp simd
-#endif
-  for(int i = 0; i < esize; i ++)
-    work[i] = entity[i] * other.entity[i];
-  for(int i = 0; i < esize; i ++)
-    res += work[i];
-  return res;
-}
-
-template <typename T> inline T& SimpleVector<T>::operator [] (const int& idx) {
-  assert(0 <= idx && idx < esize && entity);
-  return entity[idx];
-}
-
-template <typename T> inline const T SimpleVector<T>::operator [] (const int& idx) const {
-  assert(0 <= idx && idx < esize && entity);
-  return entity[idx];
-}
-
-template <typename T> inline const int& SimpleVector<T>::size() const {
-  return esize;
-}
-
-template <typename T> inline void SimpleVector<T>::resize(const int& size) {
-  assert(0 < size);
-  if(size != esize) {
-    esize = size;
-    delete[] entity;
-    entity = new T[esize];
-  }
-  return;
-}
-
-
-template <typename T> class SimpleMatrix {
-public:
-  inline SimpleMatrix();
-  inline SimpleMatrix(const int& rows, const int& cols);
-  inline SimpleMatrix(const SimpleMatrix<T>& other);
-  inline SimpleMatrix(SimpleMatrix<T>&& other);
-  inline ~SimpleMatrix();
-  
-  inline       SimpleMatrix<T>  operator -  () const;
-  inline       SimpleMatrix<T>  operator +  (const SimpleMatrix<T>& other) const;
-  inline       SimpleMatrix<T>& operator += (const SimpleMatrix<T>& other);
-  inline       SimpleMatrix<T>  operator -  (const SimpleMatrix<T>& other) const;
-  inline       SimpleMatrix<T>& operator -= (const SimpleMatrix<T>& other);
-  inline       SimpleMatrix<T>  operator *  (const T& other) const;
-  inline       SimpleMatrix<T>& operator *= (const T& other);
-  inline       SimpleMatrix<T>  operator *  (const SimpleMatrix<T>& other) const;
-  inline       SimpleMatrix<T>& operator *= (const SimpleMatrix<T>& other);
-  inline       SimpleVector<T>  operator *  (const SimpleVector<T>& other) const;
-  inline       SimpleMatrix<T>  operator /  (const T& other) const;
-  inline       SimpleMatrix<T>& operator /= (const T& other);
-  inline       SimpleMatrix<T>& operator =  (const SimpleMatrix<T>& other);
-  inline       SimpleMatrix<T>& operator =  (SimpleMatrix<T>&& other);
-  inline       bool             operator == (const SimpleMatrix<T>& other) const;
-  inline       bool             operator != (const SimpleMatrix<T>& other) const;
-  inline       T&               operator () (const int& y, const int& x);
-  inline const T&               operator () (const int& y, const int& x) const;
-  inline       SimpleVector<T>& row(const int& y);
-  inline const SimpleVector<T>& row(const int& y) const;
-  inline const SimpleVector<T>  col(const int& x) const;
-  inline       void             setCol(const int& x, const SimpleVector<T>& other);
-  inline       SimpleMatrix<T>  transpose() const;
-  inline       SimpleVector<T>  solve(SimpleVector<T> other) const;
-  inline       SimpleVector<T>  projectionPt(const SimpleVector<T>& other) const;
-  inline const int& rows() const;
-  inline const int& cols() const;
-  inline       void resize(const int& rows, const int& cols);
-private:
-  SimpleVector<T>* entity;
-  int              erows;
-  int              ecols;
-};
-
-template <typename T> inline SimpleMatrix<T>::SimpleMatrix(const int& rows, const int& cols) {
-  assert(0 < rows && 0 < cols);
-  entity = new SimpleVector<T>[rows];
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-  for(int i = 0; i < rows; i ++)
-    entity[i].resize(cols);
-  erows = rows;
-  ecols = cols;
-  return; 
-}
-
-template <typename T> inline SimpleMatrix<T>::SimpleMatrix(const SimpleMatrix<T>& other) {
-  erows = other.erows;
-  ecols = other.ecols;
-  entity = new SimpleVector<T>[other.erows];
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-  for(int i = 0; i < erows; i ++)
-    entity[i] = other.entity[i];
-  return;
-}
-
-template <typename T> inline SimpleMatrix<T>::SimpleMatrix(SimpleMatrix<T>&& other) {
-  erows  = move(other.erows);
-  ecols  = move(other.ecols);
-  entity = move(other.entity);
-  other.entity = NULL;
-  return;
-}
-
-template <typename T> inline SimpleMatrix<T>::~SimpleMatrix() {
-  delete[] entity;
-  entity = NULL;
-  return;
-}
-  
-template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::operator - () const {
-  SimpleMatrix<T> res(erows, ecols);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-  for(int i = 0; i < erows; i ++)
-    res.entity[i] = - entity[i];
-  return res;
-}
-
-template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::operator + (const SimpleMatrix<T>& other) const {
-  auto res(*this);
-  return res += other;
-}
-
-template <typename T> inline SimpleMatrix<T>& SimpleMatrix<T>::operator += (const SimpleMatrix<T>& other) {
-  assert(erows == other.erows && ecols == other.ecols && entity && other.entity);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-  for(int i = 0; i < erows; i ++)
-    entity[i] += other.entity[i];
-  return *this;
-}
-
-template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::operator - (const SimpleMatrix<T>& other) const {
-  auto res(*this);
-  return res -= other;
-}
-
-template <typename T> inline SimpleMatrix<T>& SimpleMatrix<T>::operator -= (const SimpleMatrix<T>& other) {
-  return *this += - other;
-}
-
-template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::operator * (const T& other) const {
-  auto res(*this);
-  return res *= other;
-}
-
-template <typename T> inline SimpleMatrix<T>& SimpleMatrix<T>::operator *= (const T& other) {
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-  for(int i = 0; i < erows; i ++)
-    entity[i] *= other;
-  return *this;
-}
-
-template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::operator * (const SimpleMatrix<T>& other) const {
-  assert(ecols == other.erows && entity && other.entity);
-  auto            derived(other.transpose());
-  SimpleMatrix<T> res(erows, other.ecols);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-  for(int i = 0; i < erows; i ++) {
-          auto& resi(res.entity[i]);
-    const auto& ei(entity[i]);
-    for(int j = 0; j < other.ecols; j ++)
-      resi[j] = ei.dot(derived.entity[j]);
-  }
-  return res;
-
-}
-
-template <typename T> inline SimpleMatrix<T>& SimpleMatrix<T>::operator *= (const SimpleMatrix<T>& other) {
-  return *this = *this * other;
-}
-
-template <typename T> inline SimpleVector<T> SimpleMatrix<T>::operator * (const SimpleVector<T>& other) const {
-  assert(ecols == other.size() && entity);
-  SimpleVector<T> res(erows);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-  for(int i = 0; i < erows; i ++)
-    res[i] = entity[i].dot(other);
-  return res;
-}
-
-template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::operator / (const T& other) const {
-  auto res(*this);
-  return res /= other;
-}
-
-template <typename T> inline SimpleMatrix<T>& SimpleMatrix<T>::operator /= (const T& other) {
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-  for(int i = 0; i < erows; i ++)
-    entity[i] /= other;
-  return *this;
-}
-
-template <typename T> inline SimpleMatrix<T>& SimpleMatrix<T>::operator = (const SimpleMatrix<T>& other) {
-  if(entity == other.entity && erows == other.erows && ecols == other.ecols)
-    return *this;
-  if(erows != other.erows || ecols != other.ecols) {
-    delete[] entity;
-    entity = new SimpleVector<T>[other.erows];
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-    for(int i = 0; i < other.erows; i ++)
-      entity[i].resize(other.ecols);
-  }
-  erows = other.erows;
-  ecols = other.ecols;
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-  for(int i = 0; i < erows; i ++)
-    entity[i] = other.entity[i];
-  return *this;
-}
-
-template <typename T> inline SimpleMatrix<T>& SimpleMatrix<T>::operator = (SimpleMatrix<T>&& other) {
-  if(entity == other.entity && erows == other.erows && ecols == other.ecols)
-    return *this;
-  erows  = move(other.erows);
-  ecols  = move(other.ecols);
-  delete[] entity;
-  entity = move(other.entity);
-  other.erows  = 0;
-  other.ecols  = 0;
-  other.entity = NULL;
-  return *this;
-}
-
-template <typename T> inline bool SimpleMatrix<T>::operator == (const SimpleMatrix<T>& other) const {
-  return ! (*this != other);
-}
-
-template <typename T> inline bool SimpleMatrix<T>::operator != (const SimpleMatrix<T>& other) const {
-  assert(erows == other.erows && ecols == other.ecols && entity && other.entity);
-  for(int i = 0; i < erows; i ++)
-    if(entity[i] != other.entity[i])
-      return true;
-  return false;
-}
-
-template <typename T> inline T& SimpleMatrix<T>::operator () (const int& y, const int& x) {
-  assert(0 <= y && y < erows && entity);
-  return entity[y][x];
-}
-
-template <typename T> inline const T& SimpleMatrix<T>::operator () (const int& y, const int& x) const {
-  assert(0 <= y && y < erows && entity);
-  return entity[y][x];
-}
-
-template <typename T> inline SimpleVector<T>& SimpleMatrix<T>::row(const int& y) {
-  assert(0 <= y && y < erows && entity);
-  return entity[y];
-}
-
-template <typename T> inline const SimpleVector<T>& SimpleMatrix<T>::row(const int& y) const {
-  assert(0 <= y && y < erows && entity);
-  return entity[y];
-}
-
-template <typename T> inline const SimpleVector<T> SimpleMatrix<T>::col(const int& x) const {
-  assert(0 <= erows && 0 <= x && x < ecols && entity);
-  SimpleVector<T> res(erows);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-  for(int i = 0; i < erows; i ++)
-    res[i] = entity[i][x];
-  return res;
-}
-
-template <typename T> inline void SimpleMatrix<T>::setCol(const int& x, const SimpleVector<T>& other) {
-  assert(0 <= x && x < ecols && other.size() == erows && entity);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-  for(int i = 0; i < erows; i ++)
-    entity[i][x] = other[i];
-  return;
-}
-
-template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::transpose() const {
-  SimpleMatrix<T> res(ecols, erows);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-  for(int i = 0; i < ecols; i ++) {
-    auto& resi(res.entity[i]);
-    for(int j = 0; j < erows; j ++)
-      resi[j] = entity[j][i];
-  }
-  return res;
-}
-
-template <typename T> inline SimpleVector<T> SimpleMatrix<T>::solve(SimpleVector<T> other) const {
-  assert(0 <= erows && 0 <= ecols && erows == ecols && entity && erows == other.size());
-  auto work(*this);
-  for(int i = 0; i < erows; i ++) {
-    int xchg = i;
-    for(int j = i + 1; j < erows; j ++)
-      if(abs(work.entity[j][i]) > abs(work.entity[xchg][i]))
-        xchg = j;
-    auto buf(work.entity[i]);
-    auto buf2(other[i]);
-    work.entity[i]    = work.entity[xchg];
-    other[i]          = other[xchg];
-    work.entity[xchg] = buf;
-    other[xchg]       = buf2;
-    const auto& ei(work.entity[i]);
-    const auto& eii(ei[i]);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-    for(int j = i + 1; j < erows; j ++) {
-      const auto ratio(work.entity[j][i] / eii);
-      work.entity[j] -= ei       * ratio;
-      other[j]       -= other[i] * ratio;
-    }
-  }
-  for(int i = erows - 1; 0 <= i; i --) {
-    const auto buf(other[i] / work.entity[i][i]);
-    if(!isfinite(buf) || isnan(buf)) {
-      throw "Non full rank matrix SimpleMatrix::solve";
-      assert(!isfinite(work.entity[i][i] / other[i]) || isnan(work.entity[i][i] / other[i]));
-      continue;
-    }
-    other[i] = buf;
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-    for(int j = i - 1; 0 <= j; j --)
-      other[j] -= other[i] * work.entity[j][i];
-  }
-  return other;
-}
-
-template <typename T> inline SimpleVector<T> SimpleMatrix<T>::projectionPt(const SimpleVector<T>& other) const {
-  assert(0 < erows && 0 < ecols && ecols == other.size() && entity);
-  // also needs class or this->transpose() * (*this) == I assertion is needed.
-  SimpleMatrix<T> work(erows, ecols);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-  for(int i = 0; i < work.rows(); i ++)
-    work.row(i) = entity[i] * entity[i].dot(other);
-  SimpleVector<T> res(ecols);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-  for(int i = 0; i < other.size(); i ++) {
-    res[i] = T(0);
-    for(int j = 0; j < erows; j ++)
-      res[i] += work(j, i);
-  }
-  return res;
-}
-
-template <typename T> inline const int& SimpleMatrix<T>::rows() const {
-  return erows;
-}
-
-template <typename T> inline const int& SimpleMatrix<T>::cols() const {
-  return ecols;
-}
-
-template <typename T> inline void SimpleMatrix<T>::resize(const int& rows, const int& cols) {
-  assert(0 < rows && 0 < cols);
-  if(rows != erows) {
-    erows = rows;
-    delete[] entity;
-    entity = new SimpleVector<T>[erows];
-  }
-  if(cols != ecols) {
-    ecols = cols;
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-    for(int i = 0; i < erows; i ++)
-      entity[i].resize(ecols);
-  }
-  return;
-}
-
-
 template <typename T> class Linner {
 public:
-#if defined(WITHOUT_EIGEN)
+#if defined(_WITHOUT_EIGEN_)
   typedef SimpleMatrix<T> Mat;
   typedef SimpleVector<T> Vec;
 #else
@@ -637,28 +45,29 @@ private:
 };
 
 template <typename T> inline Linner<T>::Linner() {
+  const auto epsilon(numeric_limits<T>::epsilon());
+  // const auto epsilon(T(1) >> short(62));
+  
   // error rate for orthogonalized b.
-  threshold_feas    = numeric_limits<T>::epsilon() * T(8);
-  //threshold_feas    = T(1) >> short(62);
+  threshold_feas    = pow(epsilon, T(5) / T(6));
   
   // if SimpleVector<T>::solve fails, increase this:
-  threshold_p0      = pow(threshold_feas, T(2) / T(3));
+  threshold_p0      = pow(epsilon, T(4) / T(6));
   
   // is we gain inner or not:
-  threshold_inner   = pow(threshold_feas, T(1) / T(3));
+  threshold_inner   = pow(epsilon, T(2) / T(6));
   
   // last stage error rate:
-  err_error         = sqrt(threshold_inner);
+  err_error         = pow(epsilon, T(1) / T(6));
   
   // guarantee b is positive.
-  large             = T(1) / sqrt(err_error);
-  
-  assert(sqrt(err_error) < T(1) && T(1) < large);
+  large             = T(1) / sqrt(sqrt(err_error));
   
   // XXX: Please configure me first.
   // if threshold_loop < 0, extends some regions.
   threshold_loop    = T(0);
   
+  assert(T(1) < large);
   return;
 }
 
@@ -685,33 +94,29 @@ template <typename T> bool Linner<T>::inner(bool* fix_partial, Vec& rvec, const 
     AA.row(i) = A.row(i);
     bb[i]     = b[i];
   }
-  for(int i = 0; i < A.cols() * 2; i ++) {
-    for(int j = 0; j < A.cols(); j ++)
-      AA(A.rows() + i, j) = i / 2 == j ? (i % 2 ? - T(1) : T(1)) : T(0);
-    bb[A.rows()] = T(0);
-  }
-  
-  T M(1), m(1);
+  T M(1);
+  T m(1);
   for(int i = 0; i < A.rows(); i ++) {
-    for(int j = 0; j < A.cols(); j ++) {
-      const T buf(abs(A(i, j)));
-      if(buf != T(0)) {
-        M = max(M, buf);
-        m = min(m, buf);
-      }
+    for(int j = 0; j < AA.cols(); j ++) {
+      const T buf(abs(AA(i, j)));
+      if(buf != T(0)) m = min(m, buf);
+      M = max(M, buf);
       assert(isfinite(buf) && !isnan(buf));
     }
-    const T buf(abs(b[i]));
-    if(buf != T(0)) {
-      M = max(M, buf);
-      m = min(m, buf);
-    }
+    const T buf(abs(bb[i]));
+    if(buf != T(0)) m = min(m, buf);
+    M = max(M, buf);
     assert(isfinite(buf) && !isnan(buf));
   }
-  cerr << " err_error(" << (M / m) * sqrt(err_error) << ")" << flush;
-  for(int i = A.rows(); i < AA.rows(); i ++)
-    bb[i] = max(T(1), sqrt(b.dot(b))) * large;
-  
+  cerr << " err_error(" << sqrt(err_error) * M / m << ")" << flush;
+  const auto Mm(sqrt(M * m));
+  for(int i = A.rows(); i < AA.rows(); i ++) {
+    for(int j = 0; j < A.cols(); j ++)
+      AA(i, j) = (i - A.rows()) / 2 == j
+        ? ((i - A.rows()) % 2 ? Mm : - Mm)
+        : T(0);
+    bb[i] = large * m;
+  }
   bool* bfix_partial = new bool[AA.rows()];
   bool* checked = new bool[AA.rows()];
   const auto Pt(roughQR(AA.transpose()));
@@ -724,7 +129,7 @@ template <typename T> bool Linner<T>::inner(bool* fix_partial, Vec& rvec, const 
       fix_partial[i] = bfix_partial[i];
   delete[] bfix_partial;
   delete[] checked;
-#if defined(WITHOUT_EIGEN)
+#if defined(_WITHOUT_EIGEN_)
   rvec = R.solve(rvec);
 #else
   rvec = R.inverse() * rvec;
@@ -752,7 +157,7 @@ template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec&
   }
   
   // set value, orthogonalize, and scale t.
-#if defined(WITHOUT_EIGEN)
+#if defined(_WITHOUT_EIGEN_)
   Vec bb(b - Pt.projectionPt(b));
 #else
   Vec bb(b - Pt.transpose() * (Pt * b));
@@ -760,23 +165,25 @@ template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec&
   if(sqrt(bb.dot(bb)) <= threshold_feas * sqrt(b.dot(b))) {
     for(int i = 0; i < Pt.cols() - Pt.rows() * 2; i ++)
       bb[i] = sqrt(Pt.col(i).dot(Pt.col(i)));
-    for(int i = Pt.cols() - Pt.rows() * 2; i < bb.size(); i ++)
+    for(int i = Pt.cols() - Pt.rows() * 2; i < Pt.cols(); i ++)
       bb[i] = b[i];
-#if defined(WITHOUT_EIGEN)
+#if defined(_WITHOUT_EIGEN_)
     const Vec bbb(bb - Pt.projectionPt(bb));
 #else
     const Vec bbb(bb - Pt.transpose() * (Pt * bb));
 #endif
     if(sqrt(bbb.dot(bbb)) <= threshold_feas * sqrt(bb.dot(bb))) {
-      rvec  = Pt * (b - bb - bbb * large);
-      cerr << "t(" << rvec[0] << ")" << flush;
+      rvec = Pt * (b - bb);
+      cerr << "t" << flush;
       return isErrorMargin(Pt.transpose(), b, rvec, ! false);
     }
-    bb = bbb;
+    for(int i = 0; i < bb.size(); i ++)
+      bb[i] = T(0);
     std::cerr << "0" << flush;
   }
   Vec mbb(- bb);
-  const auto normb0(sqrt(mbb.dot(mbb)));
+  const auto normb00(sqrt(mbb.dot(mbb)));
+  const auto normb0(normb00 == T(0) ? T(1) : normb00);
   Mat Pverb(Pt);
   Vec on;
   Vec deltab;
@@ -792,8 +199,8 @@ template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec&
       checked[j] = fix[j] || norm[j] <= threshold_p0;
     }
     // extend b with threshold_loop. N.B. mbb = - b'.
-    Vec mb(mbb + norm * normb0 * threshold_loop);
-#if defined(WITHOUT_EIGEN)
+    Vec mb(mbb + norm / sqrt(norm.dot(norm)) * normb0 * threshold_loop);
+#if defined(_WITHOUT_EIGEN_)
     mb -= (deltab = Pverb.projectionPt(mb));
 #else
     mb -= (deltab = Pverb.transpose() * (Pverb * mb));
@@ -801,7 +208,7 @@ template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec&
     mb /= (ratiob = sqrt(mb.dot(mb)));
     
     // O(mn^2) check for inner or not.
-#if defined(WITHOUT_EIGEN)
+#if defined(_WITHOUT_EIGEN_)
     on = Pverb.projectionPt(- one) + mb * mb.dot(- one);
 #else
     on = Pverb.transpose() * (Pverb * (- one)) + mb * mb.dot(- one);
@@ -812,7 +219,7 @@ template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec&
     //   Also, it takes O(lg(mn)) time order for this function.
     //   But to do so, theoretical proof is needed and it seems not
     //   because we use mb with little extended and its norm is in error order.
-    int fidx(0);
+    int  fidx(0);
     for( ; fidx < on.size(); fidx ++)
       if(!checked[fidx])
         break;
@@ -821,13 +228,9 @@ template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec&
         fidx = j;
     if(fidx >= one.size())
       assert(0 && "rank is not full : should not be reached");
-    else if(on[fidx] / norm[fidx] <= threshold_inner) {
-      on /= sqrt(norm.dot(norm));
-      if(n_fixed < Pverb.rows() - 1) {
-        n_fixed --;
-        break;
-      }
-    }
+    on *= sqrt(norm.dot(norm)) / abs(mb.dot(on));
+    if(on[fidx] / norm[fidx] <= threshold_inner)
+      break;
     
     // O(mn^2) over all in this function.
     orth = Pverb.col(fidx);
@@ -838,7 +241,7 @@ template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec&
 #endif
     for(int j = 0; j < Pverb.cols(); j ++) {
       const auto work(Pverb.col(j).dot(orth) / norm2orth);
-#if defined(WITHOUT_EIGEN)
+#if defined(_WITHOUT_EIGEN_)
       Pverb.setCol(j, Pverb.col(j) - orth * work);
 #else
       Pverb.col(j) -= orth * work;
@@ -857,7 +260,7 @@ template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec&
         f[j]     = b[i]      / ratio + threshold_loop;
         j ++;
       }
-#if defined(WITHOUT_EIGEN)
+#if defined(_WITHOUT_EIGEN_)
     rvec = F.solve(f);
 #else
     rvec = F.inverse() * f;
@@ -865,7 +268,7 @@ template <typename T> bool Linner<T>::gainVectors(bool* fix, bool* checked, Vec&
     cerr << "F" << flush;
   } else {
     rvec = Pt * (on * ratiob + deltab + b);
-    cerr << "g" << flush;
+    cerr << "G" << flush;
   }
   return isErrorMargin(Pt.transpose(), b, rvec, ! false);
 }
@@ -879,7 +282,7 @@ template <typename T> inline bool Linner<T>::isErrorMargin(const Mat& A, const V
        result < lerr) result = lerr;
   }
   if(disp)
-    cerr << " errorMargin?(" << result / max(T(1), sqrt(x.dot(x))) << ")";
+    cerr << " errorMargin?(" << result / max(err_error, sqrt(x.dot(x))) << ")";
   return isfinite(result)   && !isnan(result)   &&
          isfinite(x.dot(x)) && !isnan(x.dot(x)) &&
          ((x.dot(x) == T(0) && result == T(0)) ||
@@ -893,7 +296,7 @@ template <typename T> inline typename Linner<T>::Mat Linner<T>::roughQR(const Ma
       Q(i, j) = T(0);
   for(int i = 0; i < At.rows(); i ++) {
     // N.B. in this case, At is full rank.
-#if defined(WITHOUT_EIGEN)
+#if defined(_WITHOUT_EIGEN_)
     const Vec work(At.row(i) - Q.projectionPt(At.row(i)));
 #else
     const Vec work(At.row(i) - (Q.transpose() * (Q * At.row(i).transpose())).transpose());
