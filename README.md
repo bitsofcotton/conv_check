@@ -74,7 +74,10 @@ And, if we can fix all in once the inner vector instead of fixing one by one, it
 
 # Another download sites.
 * https://konbu.azurewebsites.net/ (Sample Site)
-* https://sites.google.com/view/bitsofcotton/
-* https://ja.osdn.net/projects/conv-check/
+* https://drive.google.com/drive/folders/1B71X1BMttL6yyi76REeOTNRrpopO8EAR?usp=sharing
+* https://1drv.ms/u/s!AnqkwcwMjB_PaDIfXya_M3-aLXw?e=qzfKcU
+* https://ja.osdn.net/users/bitsofcotton/
 * https://www.sourceforge.net/projects/convcheck/
 
+# Archive
+This repository is archived, so without bugreport, will no change.
