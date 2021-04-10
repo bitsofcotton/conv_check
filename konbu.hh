@@ -75,13 +75,12 @@ template <typename T> typename Linner<T>::Vec Linner<T>::inner(const Mat& A, con
         ? T((i - A.rows()) & 1 ? 1 : - 1)
         : T(0);
         auto Pt(roughQR(AA.transpose()));
+  AA(AA.rows() - 1, AA.cols() - 1) = - T(1);
   cerr << "Q" << flush;
   const Mat  R(Pt * AA);
   cerr << "R" << flush;
   
   Vec one(Pt.cols());
-  std::vector<bool> checked;
-  checked.resize(Pt.cols(), false);
 #if defined(_OPENMP)
 #pragma omp simd
 #endif
@@ -102,6 +101,7 @@ template <typename T> typename Linner<T>::Vec Linner<T>::inner(const Mat& A, con
     for( ; fidx < on.size() && on[fidx] <= T(0); fidx ++) ;
     for(int i = fidx + 1; i < on.size(); i ++)
       if(T(0) < on[i] && on[i] < on[fidx]) fidx = i;
+    if(! n_fixed) fidx = Pt.cols() - 1;
     if(on.size() <= fidx || on[fidx] <= T(0)) break;
     
     // O(mn^2) over all in this function.
