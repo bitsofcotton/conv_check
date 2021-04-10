@@ -29,9 +29,11 @@ public:
   
          Vec inner(const Mat& A, const Vec& b) const;
   inline Mat roughQR(const Mat& At) const;
+  T epsilon;
 };
 
 template <typename T> inline Linner<T>::Linner() {
+  epsilon = pow(T(2), - T(16));
   return;
 }
 
@@ -75,7 +77,6 @@ template <typename T> typename Linner<T>::Vec Linner<T>::inner(const Mat& A, con
         ? T((i - A.rows()) & 1 ? 1 : - 1)
         : T(0);
         auto Pt(roughQR(AA.transpose()));
-  AA(AA.rows() - 1, AA.cols() - 1) = - T(1);
   cerr << "Q" << flush;
   const Mat  R(Pt * AA);
   cerr << "R" << flush;
@@ -92,11 +93,6 @@ template <typename T> typename Linner<T>::Vec Linner<T>::inner(const Mat& A, con
 #else
     const Vec  on(Pt.transpose() * (Pt * (- one)));
 #endif
-    // N.B. This might be rewrited as fix once with sorted fidxs.
-    //   When the hypothesis is true, next loop must fix or get inner vector.
-    //   Also, it takes O(lg(mn)) time order for this function.
-    //   But to do so, theoretical proof is needed and it seems not
-    //   because we use mb with little extended and its norm is in error order.
     auto fidx(0);
     for( ; fidx < on.size() && on[fidx] <= T(0); fidx ++) ;
     for(int i = fidx + 1; i < on.size(); i ++)
@@ -106,7 +102,7 @@ template <typename T> typename Linner<T>::Vec Linner<T>::inner(const Mat& A, con
     
     // O(mn^2) over all in this function.
     const Vec  orth(Pt.col(fidx));
-    const auto norm2orth(orth.dot(orth));
+    const auto norm2orth(orth.dot(orth) + epsilon);
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
@@ -126,7 +122,7 @@ template <typename T> typename Linner<T>::Vec Linner<T>::inner(const Mat& A, con
   cerr << "I" << flush;
   Vec rrvec(rvec.size() - 1);
   for(int i = 0; i < rrvec.size(); i ++)
-    rrvec[i] = rvec[i] / rvec[rvec.size() - 1];
+    rrvec[i] = rvec[i];
   return rrvec;
 }
 
