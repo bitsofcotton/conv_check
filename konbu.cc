@@ -28,35 +28,19 @@ int main(int argc, char* argv[])
   Mat A(N_INEQ, N_ELEM);
   Vec b(N_INEQ);
   for(int i = 0; i < N_INEQ; i ++)
-    b[i] = ceil((num_t(1) / num_t(2) - random() / num_t(RAND_MAX)) * M_VAL) / MIN_VAL;
+    b[i] = ceil((num_t(1) / num_t(2) - num_t(random()) / num_t(RAND_MAX)) * num_t(M_VAL)) / num_t(MIN_VAL);
   for(int i = 0; i < N_ELEM; i ++)
     for(int j = 0; j < N_INEQ; j ++)
-      A(j, i) = ceil((num_t(1) / num_t(2) - random() / num_t(RAND_MAX)) * M_VAL) / MIN_VAL;
+      A(j, i) = ceil((num_t(1) / num_t(2) - num_t(random()) / num_t(RAND_MAX)) * num_t(M_VAL)) / num_t(MIN_VAL);
   
   cout.precision(MANT_DIG);
   cerr.precision(MANT_DIG);
   
-  Vec  result;
-  bool* fix_partial = new bool[A.rows()];
-  Linner<num_t> lp;
-  bool feas = lp.inner(fix_partial, result, A, b);
-  
-  if(feas)
-    cout << " OPT " << endl;
-  
-  int n_fixed = 0;
-  for(int i = 0; i < A.rows(); i ++)
-    if(fix_partial[i]) n_fixed ++;
-  cout << "fix_partial ( " << n_fixed << " / " << A.cols() << " ) : ";
-  for(int i = 0; i < A.rows(); i ++)
-    cout << (const char*)(fix_partial[i] ? "1" : "0");
-  cout << endl;
-  for(int i = 0; i < result.size(); i ++)
-    cout << result[i] << "\t";
-  cout << std::endl;
-  
-  delete[] fix_partial;
-  
+  const auto error(A * Linner<num_t>().inner(A, b) - b);
+        auto M(error[0]);
+  for(int i = 1; i < error.size(); i ++)
+    M = max(M, error[i]);
+  std::cout << sqrt(b.dot(b)) << ", " << M << std::endl;
   return 0;
 }
 

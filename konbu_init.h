@@ -4,6 +4,7 @@
 #include <sstream>
 #include <float.h>
 #include <limits>
+#include <vector>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <assert.h>
