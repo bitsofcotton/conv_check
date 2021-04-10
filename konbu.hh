@@ -122,7 +122,7 @@ template <typename T> typename Linner<T>::Vec Linner<T>::inner(const Mat& A, con
   cerr << "I" << flush;
   Vec rrvec(rvec.size() - 1);
   for(int i = 0; i < rrvec.size(); i ++)
-    rrvec[i] = rvec[i];
+    rrvec[i] = rvec[i] / rvec[rvec.size() - 1];
   return rrvec;
 }
 
