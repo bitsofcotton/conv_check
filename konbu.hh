@@ -40,8 +40,11 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
       assert(upper[i] != T(0));
       AA.row(i) /= upper[i];
     }
-    one[i]     = T(1);
-    if(i < A.rows() - 1) AA.row(i + A.rows()) = - AA.row(i);
+    one[i] = T(1);
+    if(i < A.rows() - 1) {
+      AA.row(i + A.rows()) = - AA.row(i);
+      one[i + A.rows()] = T(1);
+    }
     assert(isfinite(AA.row(i).dot(AA.row(i))));
   }
   // [A, - bb] [x t] <= [1 ... 1].
@@ -77,12 +80,13 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
     
     // O(mn^2) over all in this function.
     const auto orth(Pt.col(fidx));
-    const auto norm2orth(orth.dot(orth) + T(n_fixed ? 0 : 1));
+    const auto norm2orth(orth.dot(orth) + (n_fixed ? epsilon : T(1)));
+    if(norm2orth <= T(0)) break;
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
     for(int j = 0; j < Pt.cols(); j ++)
-      Pt.setCol(j, Pt.col(j) - orth * (Pt.col(j).dot(orth) + T(n_fixed ? 0 : 1)) / norm2orth);
+      Pt.setCol(j, Pt.col(j) - orth * (Pt.col(j).dot(orth) + (n_fixed ? epsilon : T(1))) / norm2orth);
   }
   cerr << "G" << flush;
 #if defined(_WITHOUT_EIGEN_)
