@@ -4,6 +4,7 @@
 #include <sstream>
 #include <vector>
 #include <iomanip>
+#include <algorithm>
 #include <assert.h>
 
 #if !defined(_FLOAT_BITS_)

@@ -19,9 +19,9 @@ using std::flush;
 
 template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const SimpleVector<T>& bl, const SimpleVector<T>& bu) {
 #if defined(_FLOAT_BITS_)
-  static const auto epsilon(T(1) >> int64_t(mybits / 2));
+  static const auto epsilon(T(1) >> (mybits - 1));
 #else
-  static const auto epsilon(sqrt(std::numeric_limits<T>::epsilon()));
+  static const auto epsilon(std::numeric_limits<T>::epsilon());
 #endif
   assert(A.rows() == bl.size() && A.rows() == bu.size() &&
          0 < A.cols() && 0 < A.rows());
@@ -69,24 +69,38 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   cerr << "Q" << flush;
   const auto R(Pt * AA);
   cerr << "R" << flush;
-  for(int n_fixed = 0; n_fixed < Pt.rows() - 1; n_fixed ++) {
-    const auto on(Pt.projectionPt(- one));
-    auto fidx(0);
-    for( ; fidx < on.size() && on[fidx] <= T(0); fidx ++) ;
-    for(int i = fidx + 1; i < on.size(); i ++)
-      if(T(0) < on[i] && on[i] < on[fidx]) fidx = i;
-    if(! n_fixed) fidx = on.size() - 1;
-    if(on.size() <= fidx || on[fidx] <= T(0)) break;
-    
-    // O(mn^2) over all in this function.
-    const auto orth(Pt.col(fidx));
-    const auto norm2orth(orth.dot(orth) + (n_fixed ? epsilon : T(1)));
-    if(norm2orth <= T(0)) break;
+  {
+    const auto orth(Pt.col(Pt.cols() - 1));
+    const auto norm2orth(orth.dot(orth) + T(1));
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
     for(int j = 0; j < Pt.cols(); j ++)
-      Pt.setCol(j, Pt.col(j) - orth * (Pt.col(j).dot(orth) + (n_fixed ? epsilon : T(1))) / norm2orth);
+      Pt.setCol(j, Pt.col(j) - orth * (Pt.col(j).dot(orth) + T(1)) / norm2orth);
+  }
+  const auto on(Pt.projectionPt(- one));
+  std::vector<std::pair<T, int> > fidx;
+  fidx.reserve(on.size());
+  for(int i = 0; i < on.size(); i ++)
+    if(T(0) < on[i])
+      fidx.emplace_back(std::make_pair(on[i], i));
+  std::sort(fidx.begin(), fidx.end());
+  // worst case O(mn^2) over all in this function,
+  // we can make this function better case it's O(n^3) but not now.
+  for(int n_fixed = 0, idx = 0; n_fixed < Pt.rows() - 2 && idx < fidx.size(); n_fixed ++, idx ++) {
+    const auto& iidx(fidx[idx].second);
+    const auto  orth(Pt.col(iidx));
+    const auto  norm2orth(orth.dot(orth));
+    // XXX error:
+    if(norm2orth <= epsilon) {
+      n_fixed --;
+      continue;
+    }
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static, 1)
+#endif
+    for(int j = 0; j < Pt.cols(); j ++)
+      Pt.setCol(j, Pt.col(j) - orth * (Pt.col(j).dot(orth) + T(n_fixed ? 0 : 1)) / norm2orth);
   }
   cerr << "G" << flush;
 #if defined(_WITHOUT_EIGEN_)
