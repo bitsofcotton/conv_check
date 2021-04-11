@@ -10,8 +10,8 @@ typedef SimpleMatrix<num_t> Mat;
 typedef SimpleVector<num_t> Vec;
 #endif
 
-#define MIN_VAL 100
-#define M_VAL   10000
+#define MIN_VAL 1000
+#define M_VAL   1000000
 int main(int argc, char* argv[])
 {
   int N_ELEM = 0, N_INEQ = 0;  
@@ -36,11 +36,12 @@ int main(int argc, char* argv[])
   cout.precision(MANT_DIG);
   cerr.precision(MANT_DIG);
   
+  b *= num_t(1000);
   const auto error(A * Linner<num_t>().inner(A, b) - b);
         auto M(error[0]);
   for(int i = 1; i < error.size(); i ++)
     M = max(M, error[i]);
-  std::cout << sqrt(b.dot(b)) << ", " << M << std::endl;
+  std::cout << M << ", " << sqrt(b.dot(b)) << std::endl;
   return 0;
 }
 

@@ -33,7 +33,11 @@ public:
 };
 
 template <typename T> inline Linner<T>::Linner() {
-  epsilon = pow(T(2), - T(16));
+#if defined(ACC_NO_FLOAT)
+  epsilon = T(1) >> short(32);
+#else
+  epsilon = sqrt(std::numeric_limits<T>::epsilon());
+#endif
   return;
 }
 
@@ -102,15 +106,36 @@ template <typename T> typename Linner<T>::Vec Linner<T>::inner(const Mat& A, con
     
     // O(mn^2) over all in this function.
     const Vec  orth(Pt.col(fidx));
-    const auto norm2orth(orth.dot(orth) + epsilon);
+          Vec  intercept(Pt.cols());
+    const auto orth2(orth.dot(orth));
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static, 1)
+#endif
+    for(int j = 0; j < Pt.cols(); j ++) {
+      intercept[j] = sqrt(orth2 * Pt.col(j).dot(Pt.col(j)));
+      if(intercept[j] == T(0)) continue;
+      intercept[j] = T(1) / intercept[j];
+      if(! isfinite(intercept[j]) || isnan(intercept[j])) intercept[j] = T(0);
+    }
+    const auto ninter(sqrt(intercept.dot(intercept)));
+    if(! isfinite(ninter) || isnan(ninter) || ninter == T(0)) break;
+    intercept *= epsilon / ninter;
+    const auto norm2orth(orth.dot(orth) + intercept[fidx]);
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
     for(int j = 0; j < Pt.cols(); j ++)
+      if(intercept[j] == T(0))
 #if defined(_WITHOUT_EIGEN_)
-      Pt.setCol(j, Pt.col(j) - orth * Pt.col(j).dot(orth) / norm2orth);
+        Pt.setCol(j, Pt.col(j) * T(0));
 #else
-      Pt.col(j) -= orth * Pt.col(j).dot(orth) / norm2orth;
+        Pt.col(j) *= T(0);
+#endif
+      else
+#if defined(_WITHOUT_EIGEN_)
+        Pt.setCol(j, Pt.col(j) - orth * (Pt.col(j).dot(orth) + intercept[j]) / norm2orth);
+#else
+        Pt.col(j) -= orth * (Pt.col(j).dot(orth) + intercept[j]) / norm2orth;
 #endif
   }
   cerr << "G" << flush;
