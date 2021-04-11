@@ -30,9 +30,6 @@ After loop we get :
     const auto error(A * Linner<num_t>().inner(A, b * num_t(0), b) - b);
     ...
 
-# Little Tips
-If we can fix all in once the inner vector instead of fixing one by one, it's O(lg(n)*lg(mn)) time order but is seems not. 
-
 # Another download sites.
 * https://konbu.azurewebsites.net/ (Sample Site)
 * https://drive.google.com/drive/folders/1B71X1BMttL6yyi76REeOTNRrpopO8EAR?usp=sharing
