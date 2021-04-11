@@ -8,9 +8,13 @@ Japanese Patent Draft : JP2014089683 .
 
 # Proof
 b_l&lt;=Ax&lt;=b_u
+
 -b&lt;=Ax+b'&lt;=b
+
 |Ax+b'|&lt;=b
+
 |A'x+b''|&lt;=1
+
 |[-b''',P][t,x']|&lt;=1.
 
 After loop we get :
