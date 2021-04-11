@@ -78,7 +78,9 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
 #pragma omp parallel for schedule(static, 1)
 #endif
     for(int j = 0; j < on.size(); j ++) {
-      on[j] /= sqrt(Pt.col(j).dot(Pt.col(j)));
+      const auto n2(Pt.col(j).dot(Pt.col(j)));
+      if(n2 == T(0)) on[j] = n2;
+      else on[j] /= sqrt(n2);
       if(! isfinite(on[j]) || isnan(on[j])) on[j] = T(0);
     }
     auto fidx(0);
