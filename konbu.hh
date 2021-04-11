@@ -77,12 +77,12 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
     
     // O(mn^2) over all in this function.
     const auto orth(Pt.col(fidx));
-    const auto norm2orth(orth.dot(orth));
+    const auto norm2orth(orth.dot(orth) + T(n_fixed ? 0 : 1));
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
     for(int j = 0; j < Pt.cols(); j ++)
-      Pt.setCol(j, Pt.col(j) - orth * Pt.col(j).dot(orth) / norm2orth);
+      Pt.setCol(j, Pt.col(j) - orth * (Pt.col(j).dot(orth) + T(n_fixed ? 0 : 1)) / norm2orth);
   }
   cerr << "G" << flush;
 #if defined(_WITHOUT_EIGEN_)
