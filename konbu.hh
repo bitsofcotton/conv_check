@@ -14,89 +14,73 @@
 
 #if !defined(_LINEAR_OPT_)
 
-template <typename T> class Linner {
-public:
-#if defined(_WITHOUT_EIGEN_)
-  typedef SimpleMatrix<T> Mat;
-  typedef SimpleVector<T> Vec;
+using std::cerr;
+using std::flush;
+
+template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const SimpleVector<T>& bl, const SimpleVector<T>& bu) {
+#if defined(_FLOAT_BITS_)
+  static const auto epsilon(T(1) >> int64_t(mybits / 2));
 #else
-  typedef Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> Mat;
-  typedef Eigen::Matrix<T, Eigen::Dynamic, 1> Vec;
+  static const auto epsilon(sqrt(std::numeric_limits<T>::epsilon()));
 #endif
-  
-  inline Linner();
-  inline ~Linner();
-  
-         Vec inner(const Mat& A, const Vec& b) const;
-  inline Mat roughQR(const Mat& At) const;
-  T epsilon;
-};
-
-template <typename T> inline Linner<T>::Linner() {
-#if defined(ACC_NO_FLOAT)
-  epsilon = T(1) >> short(32);
-#else
-  epsilon = sqrt(std::numeric_limits<T>::epsilon());
-#endif
-  return;
-}
-
-template <typename T> inline Linner<T>::~Linner() {
-  return;
-}
-
-template <typename T> typename Linner<T>::Vec Linner<T>::inner(const Mat& A, const Vec& b) const {
-  assert(A.rows() == b.size() && 0 < A.cols() && 0 < b.size());
+  assert(A.rows() == bl.size() && A.rows() == bu.size() &&
+         0 < A.cols() && 0 < A.rows());
   // cout << A << endl << b << endl << c.transpose() << endl;
   cerr << " (" << A.rows() << ", " << A.cols() << ")";
-  {
-    bool trivial(true);
-    for(int i = 0; i < b.size() && trivial; i ++)
-      trivial = T(0) <= b[i];
-    if(trivial) {
-      Vec rvec(A.cols());
-      for(int i = 0; i < rvec.size(); i ++)
-        rvec[i] = T(0);
-      return rvec;
-    }
-  }
-  Mat AA(A.rows() + A.cols() * 2 + 1, A.cols() + 1);
+  // bu - bb == A, bl - bb == - A <=> bu - bl == 2 A
+  const auto bb(bu - (bu - bl) / T(2));
+  const auto upper(bu - bb);
+  const auto extra(! (abs(upper.dot(bb)) <= epsilon * sqrt(upper.dot(upper) * bb.dot(bb))) );
+  SimpleMatrix<T> AA(A.rows() * 2 - 1 + (A.cols() + (extra ? 2 : 1)) * 2 + (extra ? 2 : 0), A.cols() + (extra ? 2 : 1));
   for(int i = 0; i < A.rows(); i ++) {
     for(int j = 0; j < A.cols(); j ++)
       AA(i, j) = A(i, j);
-    AA(i, A.cols()) = - b[i];
-    AA.row(i) /= sqrt(AA.row(i).dot(AA.row(i)));
+    AA(i, A.cols()) = - bb[i];
+    if(A.cols() + 1 < AA.cols()) AA(i, A.cols() + 1) = - upper[i];
+    if(i < A.rows() - 1) AA.row(i + A.rows()) = - AA.row(i);
+    assert(isfinite(AA.row(i).dot(AA.row(i))));
   }
-  T m(1);
-  for(int i = 0; i < A.rows(); i ++)
-    for(int j = 0; j < AA.cols(); j ++) {
-      const auto buf(abs(AA(i, j)));
-      if(buf != T(0)) m = min(m, buf);
-      assert(isfinite(buf) && !isnan(buf));
-    }
-  cerr << " scale(" << m << ")" << flush;
-  for(int i = A.rows(); i < AA.rows(); i ++)
+  for(int i = A.rows() * 2 - 1; i < AA.rows() - (extra ? 2 : 0); i ++)
     for(int j = 0; j < AA.cols(); j ++)
-      AA(i, j) = (i - A.rows()) / 2 == j
-        ? T((i - A.rows()) & 1 ? 1 : - 1)
+      AA(i, j) = (i - (A.rows() * 2 - 1)) / 2 == j
+        ? T((i - (A.rows() * 2 - 1)) & 1 ? 1 : - 1)
         : T(0);
-        auto Pt(roughQR(AA.transpose()));
+  if(extra)
+    for(int j = 0; j < AA.cols(); j ++) {
+      const T ext(j < A.cols() ? 0 : (j == A.cols() ? 1 : - 1));
+      AA(AA.rows() - 2, j) =   ext;
+      AA(AA.rows() - 1, j) = - ext;
+    }
+  SimpleMatrix<T> Pt(AA.cols(), AA.rows());
+  for(int i = 0; i < Pt.rows(); i ++)
+    for(int j = 0; j < Pt.cols(); j ++)
+      Pt(i, j) = T(0);
+  for(int i = 0; i < AA.cols(); i ++) {
+    const auto Atrowi(AA.col(i));
+    const auto work(Atrowi - Pt.projectionPt(Atrowi));
+    // generally, assert norm > error is needed.
+    // in this case, not.
+    Pt.row(i) = work / sqrt(work.dot(work));
+  }
   cerr << "Q" << flush;
-  const Mat  R(Pt * AA);
+  const auto R(Pt * AA);
   cerr << "R" << flush;
   
-  Vec one(Pt.cols());
+  SimpleVector<T> one(Pt.cols());
 #if defined(_OPENMP)
 #pragma omp simd
 #endif
   for(int i = 0; i < Pt.cols(); i ++)
     one[i] = T(1);
   for(int n_fixed = 0; n_fixed < Pt.rows() - 1; n_fixed ++) {
-#if defined(_WITHOUT_EIGEN_)
-    const auto on(Pt.projectionPt(- one));
-#else
-    const Vec  on(Pt.transpose() * (Pt * (- one)));
+    auto on(Pt.projectionPt(- one));
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static, 1)
 #endif
+    for(int j = 0; j < on.size(); j ++) {
+      on[j] /= sqrt(Pt.col(j).dot(Pt.col(j)));
+      if(! isfinite(on[j]) || isnan(on[j])) on[j] = T(0);
+    }
     auto fidx(0);
     for( ; fidx < on.size() && on[fidx] <= T(0); fidx ++) ;
     for(int i = fidx + 1; i < on.size(); i ++)
@@ -104,17 +88,13 @@ template <typename T> typename Linner<T>::Vec Linner<T>::inner(const Mat& A, con
     if(on.size() <= fidx || on[fidx] <= T(0)) break;
     
     // O(mn^2) over all in this function.
-    const Vec  orth(Pt.col(fidx));
+    const auto orth(Pt.col(fidx));
     const auto norm2orth(orth.dot(orth));
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
     for(int j = 0; j < Pt.cols(); j ++)
-#if defined(_WITHOUT_EIGEN_)
       Pt.setCol(j, Pt.col(j) - orth * Pt.col(j).dot(orth) / norm2orth);
-#else
-      Pt.col(j) -= orth * Pt.col(j).dot(orth) / norm2orth;
-#endif
   }
   cerr << "G" << flush;
 #if defined(_WITHOUT_EIGEN_)
@@ -123,29 +103,17 @@ template <typename T> typename Linner<T>::Vec Linner<T>::inner(const Mat& A, con
   auto rvec(- R.inverse() * (Pt * one));
 #endif
   cerr << "I" << flush;
-  Vec rrvec(rvec.size() - 1);
-  for(int i = 0; i < rrvec.size(); i ++)
-    rrvec[i] = rvec[i] / rvec[rvec.size() - 1];
-  return rrvec;
-}
-
-template <typename T> inline typename Linner<T>::Mat Linner<T>::roughQR(const Mat& At) const {
-  Mat Q(At.rows(), At.cols());
-  for(int i = 0; i < Q.rows(); i ++)
-    for(int j = 0; j < Q.cols(); j ++)
-      Q(i, j) = T(0);
-  for(int i = 0; i < At.rows(); i ++) {
-    // N.B. in this case, At is full rank.
-#if defined(_WITHOUT_EIGEN_)
-    const Vec work(At.row(i) - Q.projectionPt(At.row(i)));
-#else
-    const Vec work(At.row(i) - (Q.transpose() * (Q * At.row(i).transpose())).transpose());
-#endif
-    // generally, assert norm > error is needed.
-    // in this case, not.
-    Q.row(i) = work / sqrt(work.dot(work));
+  SimpleVector<T> rrvec(rvec.size() - (extra ? 2 : 1));
+  if(extra) {
+    // | [A, - bb, - upper] [x t t] | <= epsilon 1
+    for(int i = 0; i < rrvec.size(); i ++)
+      rrvec[i] = rvec[i] / ((rvec[rvec.size() - 2] + rvec[rvec.size() - 1]) / T(2));
+  } else {
+    // | [A, - bb == - upper] [x t] | <= epsilon 1.
+    for(int i = 0; i < rrvec.size(); i ++)
+      rrvec[i] = rvec[i] / rvec[rvec.size() - 1];
   }
-  return Q;
+  return rrvec;
 }
 
 #define _LINEAR_OPT_
