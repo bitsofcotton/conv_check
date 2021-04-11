@@ -30,27 +30,28 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   // bu - bb == A, bl - bb == - A <=> bu - bl == 2 A
   const auto bb(bu - (bu - bl) / T(2));
   const auto upper(bu - bb);
-  const auto extra(upper.dot(upper) * bb.dot(bb) != T(0) && ! (abs(upper.dot(bb) / sqrt(upper.dot(upper) * bb.dot(bb)) - T(1)) <= epsilon) );
-  SimpleMatrix<T> AA(A.rows() * 2 - 1 + (A.cols() + (extra ? 2 : 1)) * 2 + (extra ? 2 : 0), A.cols() + (extra ? 2 : 1));
+  SimpleMatrix<T> AA(A.rows() * 2 - 1 + (A.cols() + 1) * 2 - 1, A.cols() + 1);
+  SimpleVector<T> one(AA.rows());
   for(int i = 0; i < A.rows(); i ++) {
     for(int j = 0; j < A.cols(); j ++)
       AA(i, j) = A(i, j);
     AA(i, A.cols()) = - bb[i];
-    if(A.cols() + 1 < AA.cols()) AA(i, A.cols() + 1) = - upper[i];
+    if(upper.dot(upper) != T(0)) {
+      assert(upper[i] != T(0));
+      AA.row(i) /= upper[i];
+    }
+    one[i]     = T(1);
     if(i < A.rows() - 1) AA.row(i + A.rows()) = - AA.row(i);
     assert(isfinite(AA.row(i).dot(AA.row(i))));
   }
-  for(int i = A.rows() * 2 - 1; i < AA.rows() - (extra ? 2 : 0); i ++)
+  // [A, - bb] [x t] <= [1 ... 1].
+  for(int i = A.rows() * 2 - 1; i < AA.rows(); i ++) {
     for(int j = 0; j < AA.cols(); j ++)
       AA(i, j) = (i - (A.rows() * 2 - 1)) / 2 == j
         ? T((i - (A.rows() * 2 - 1)) & 1 ? 1 : - 1)
         : T(0);
-  if(extra)
-    for(int j = 0; j < AA.cols(); j ++) {
-      const T ext(j < A.cols() ? 0 : (j == A.cols() ? 1 : - 1));
-      AA(AA.rows() - 2, j) =   ext;
-      AA(AA.rows() - 1, j) = - ext;
-    }
+    one[i] = T(1);
+  }
   SimpleMatrix<T> Pt(AA.cols(), AA.rows());
   for(int i = 0; i < Pt.rows(); i ++)
     for(int j = 0; j < Pt.cols(); j ++)
@@ -65,28 +66,13 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   cerr << "Q" << flush;
   const auto R(Pt * AA);
   cerr << "R" << flush;
-  
-  SimpleVector<T> one(Pt.cols());
-#if defined(_OPENMP)
-#pragma omp simd
-#endif
-  for(int i = 0; i < Pt.cols(); i ++)
-    one[i] = T(1);
   for(int n_fixed = 0; n_fixed < Pt.rows() - 1; n_fixed ++) {
-    auto on(Pt.projectionPt(- one));
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-    for(int j = 0; j < on.size(); j ++) {
-      const auto n2(Pt.col(j).dot(Pt.col(j)));
-      if(n2 == T(0)) on[j] = n2;
-      else on[j] /= sqrt(n2);
-      if(! isfinite(on[j]) || isnan(on[j])) on[j] = T(0);
-    }
+    const auto on(Pt.projectionPt(- one));
     auto fidx(0);
     for( ; fidx < on.size() && on[fidx] <= T(0); fidx ++) ;
     for(int i = fidx + 1; i < on.size(); i ++)
       if(T(0) < on[i] && on[i] < on[fidx]) fidx = i;
+    if(! n_fixed) fidx = on.size() - 1;
     if(on.size() <= fidx || on[fidx] <= T(0)) break;
     
     // O(mn^2) over all in this function.
@@ -105,16 +91,10 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   auto rvec(- R.inverse() * (Pt * one));
 #endif
   cerr << "I" << flush;
-  SimpleVector<T> rrvec(rvec.size() - (extra ? 2 : 1));
-  if(extra) {
-    // | [A, - bb, - upper] [x t t] | <= epsilon 1
-    for(int i = 0; i < rrvec.size(); i ++)
-      rrvec[i] = rvec[i] / ((rvec[rvec.size() - 2] + rvec[rvec.size() - 1]) / T(2));
-  } else {
-    // | [A, - bb == - upper] [x t] | <= epsilon 1.
-    for(int i = 0; i < rrvec.size(); i ++)
-      rrvec[i] = rvec[i] / rvec[rvec.size() - 1];
-  }
+  SimpleVector<T> rrvec(rvec.size() - 1);
+  // | [A, - bb == - upper] [x t] | <= epsilon 1.
+  for(int i = 0; i < rrvec.size(); i ++)
+    rrvec[i] = rvec[i] / rvec[rvec.size() - 1];
   return rrvec;
 }
 
