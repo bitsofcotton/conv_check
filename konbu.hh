@@ -30,7 +30,7 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   // bu - bb == A, bl - bb == - A <=> bu - bl == 2 A
   const auto bb(bu - (bu - bl) / T(2));
   const auto upper(bu - bb);
-  const auto extra(! (abs(upper.dot(bb)) <= epsilon * sqrt(upper.dot(upper) * bb.dot(bb))) );
+  const auto extra(! (abs(upper.dot(bb) / sqrt(upper.dot(upper) * bb.dot(bb)) - T(1)) <= epsilon) );
   SimpleMatrix<T> AA(A.rows() * 2 - 1 + (A.cols() + (extra ? 2 : 1)) * 2 + (extra ? 2 : 0), A.cols() + (extra ? 2 : 1));
   for(int i = 0; i < A.rows(); i ++) {
     for(int j = 0; j < A.cols(); j ++)
