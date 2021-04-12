@@ -30,7 +30,7 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   // bu - bb == A, bl - bb == - A <=> bu - bl == 2 A
   const auto bb(bu - (bu - bl) / T(2));
   const auto upper(bu - bb);
-  SimpleMatrix<T> AA(A.rows() * 2 - 1 + (A.cols() + 1) * 2 - 1, A.cols() + 1);
+  SimpleMatrix<T> AA(A.rows() * 2 - 1, A.cols() + 1);
   SimpleVector<T> one(AA.rows());
   std::vector<std::pair<T, int> > equal;
   equal.reserve(A.rows());
@@ -38,56 +38,51 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
     for(int j = 0; j < A.cols(); j ++)
       AA(i, j) = A(i, j);
     AA(i, A.cols()) = - bb[i];
-    if(upper.dot(upper) != T(0)) {
-      if(upper[i] == T(0)) {
-        const auto n2(AA.row(i).dot(AA.row(i)));
-        if(n2 != T(0)) {
-          equal.emplace_back(std::make_pair(T(0), i));
-          AA.row(i) /= sqrt(n2);
-        }
-      } else
-        AA.row(i) /= upper[i];
+    if(upper[i] == T(0)) {
+      const auto n2(AA.row(i).dot(AA.row(i)));
+      if(n2 != T(0)) {
+        equal.emplace_back(std::make_pair(T(0), i));
+        AA.row(i) /= sqrt(n2);
+      }
+    } else {
+      AA.row(i) /= upper[i];
+      AA(i, A.cols()) -= - T(1);
     }
     one[i] = T(1);
-    if(i < A.rows() - 1) {
-      AA.row(i + A.rows()) = - AA.row(i);
-      one[i + A.rows()] = T(1);
-    }
     assert(isfinite(AA.row(i).dot(AA.row(i))));
-  }
-  // [A, - bb] [x t] <= [1 ... 1].
-  for(int i = A.rows() * 2 - 1; i < AA.rows(); i ++) {
-    for(int j = 0; j < AA.cols(); j ++)
-      AA(i, j) = (i - (A.rows() * 2 - 1)) / 2 == j
-        ? T((i - (A.rows() * 2 - 1)) & 1 ? 1 : - 1)
-        : T(0);
-    one[i] = T(1);
+    if(A.rows() - 1 <= i) break;
+    AA.row(i + A.rows()) = - AA.row(i);
+    one[i + A.rows()] = T(1);
   }
   SimpleMatrix<T> Pt(AA.cols(), AA.rows());
   for(int i = 0; i < Pt.rows(); i ++)
     for(int j = 0; j < Pt.cols(); j ++)
       Pt(i, j) = T(0);
-  for(int i = 0; i < AA.cols(); i ++) {
+  int ii(0);
+  for(int i = 0; i < AA.cols() && ii < AA.cols(); i ++) {
     const auto Atrowi(AA.col(i));
     const auto work(Atrowi - Pt.projectionPt(Atrowi));
-    // generally, assert norm > error is needed.
-    // in this case, not.
-    Pt.row(i) = work / sqrt(work.dot(work));
+    const auto n2(work.dot(work));
+    if(n2 <= epsilon) continue;
+    Pt.row(ii ++) = work / sqrt(n2);
   }
+  int j(0);
+  for( ; ii < AA.cols(); ii ++) {
+    for( ; j < AA.rows(); j ++) {
+      SimpleVector<T> ek(AA.rows());
+      for(int k = 0; k < AA.rows(); k ++)
+        ek[k] = j == k ? T(1) : T(0);
+      ek -= Pt.projectionPt(ek);
+      const auto n2(ek.dot(ek));
+      if(n2 <= epsilon) continue;
+      Pt.row(ii) = ek / sqrt(n2);
+      break;
+    }
+  }
+  assert(Pt.rows() <= ii);
   cerr << "Q" << flush;
   const auto R(Pt * AA);
   cerr << "R" << flush;
-  int n_fixed(0);
-  {
-    const auto orth(Pt.col(Pt.cols() - 1));
-    const auto norm2orth(orth.dot(orth) + T(1));
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-    for(int j = 0; j < Pt.cols(); j ++)
-      Pt.setCol(j, Pt.col(j) - orth * (Pt.col(j).dot(orth) + T(1)) / norm2orth);
-    n_fixed ++;
-  }
   const auto on(Pt.projectionPt(- one));
   std::vector<std::pair<T, int> > fidx;
   fidx.reserve(on.size());
@@ -107,7 +102,7 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   }
   // worst case O(mn^2) over all in this function,
   // we can make this function better case it's O(n^3) but not now.
-  for(int idx = 0; n_fixed < Pt.rows() - 1 && idx < fidx.size(); n_fixed ++, idx ++) {
+  for(int n_fixed = 0, idx = 0; n_fixed < Pt.rows() - 1 && idx < fidx.size(); n_fixed ++, idx ++) {
     const auto& iidx(fidx[idx].second);
     const auto  orth(Pt.col(iidx));
     const auto  norm2orth(orth.dot(orth));

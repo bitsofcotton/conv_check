@@ -73,17 +73,13 @@ int main(int argc, char* argv[])
     A.row(j) *= pow(A(j, 0) * A(j, 1) * A(j, 2) * A(j, 3), - num_t(40));
     std::cerr << A(j, 0) << ", " << A(j, 1) << ", " << A(j, 2) << ", " << A(j, 3) << std::endl;
   }
-  num_t base(0);
-  num_t before(0);
-  for(int i = - 30; i <= 30; i ++) {
-    const auto r(base + pow(num_t(2), - num_t(i)));
+  for(int i = - 90; i <= 90; i ++) {
+    const auto r(pow(num_t(2), - num_t(i)));
     const auto err(A * inner<num_t>(A, - one * r, one * r));
           auto MM(abs(err[0]));
     for(int j = 1; j < err.size(); j ++)
       MM = max(MM, abs(err[j]));
     std::cout << r << " : " << MM << std::endl;
-    if(before != num_t(0) && before < MM) base += pow(num_t(2), - num_t(i - 1));
-    before = MM;
   }
   
   return 0;
