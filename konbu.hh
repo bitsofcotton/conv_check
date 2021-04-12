@@ -66,18 +66,14 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
     if(n2 <= epsilon) continue;
     Pt.row(ii ++) = work / sqrt(n2);
   }
-  int j(0);
-  for( ; ii < AA.cols(); ii ++) {
-    for( ; j < AA.rows(); j ++) {
-      SimpleVector<T> ek(AA.rows());
-      for(int k = 0; k < AA.rows(); k ++)
-        ek[k] = j == k ? T(1) : T(0);
-      ek -= Pt.projectionPt(ek);
-      const auto n2(ek.dot(ek));
-      if(n2 <= epsilon) continue;
-      Pt.row(ii) = ek / sqrt(n2);
-      break;
-    }
+  for(int j = 0; j < Pt.cols() && ii < Pt.rows(); j ++) {
+    SimpleVector<T> ek(Pt.cols());
+    for(int k = 0; k < Pt.cols(); k ++)
+      ek[k] = j == k ? T(1) : T(0);
+    ek -= Pt.projectionPt(ek);
+    const auto n2(ek.dot(ek));
+    if(n2 <= epsilon) continue;
+    Pt.row(ii ++) = ek / sqrt(n2);
   }
   assert(Pt.rows() <= ii);
   cerr << "Q" << flush;
