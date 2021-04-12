@@ -58,24 +58,28 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   for(int i = 0; i < Pt.rows(); i ++)
     for(int j = 0; j < Pt.cols(); j ++)
       Pt(i, j) = T(0);
-  int ii(0);
-  for(int i = 0; i < AA.cols() && ii < AA.cols(); i ++) {
+  std::vector<int> residue;
+  for(int i = 0; i < AA.cols(); i ++) {
     const auto Atrowi(AA.col(i));
     const auto work(Atrowi - Pt.projectionPt(Atrowi));
     const auto n2(work.dot(work));
-    if(n2 <= epsilon) continue;
-    Pt.row(ii ++) = work / sqrt(n2);
+    if(n2 <= epsilon) {
+      residue.emplace_back(i);
+      continue;
+    }
+    Pt.row(i) = work / sqrt(n2);
   }
-  for(int j = 0; j < Pt.cols() && ii < Pt.rows(); j ++) {
+  int ii(0);
+  for(int j = 0; j < Pt.cols() && ii < residue.size(); j ++) {
     SimpleVector<T> ek(Pt.cols());
     for(int k = 0; k < Pt.cols(); k ++)
       ek[k] = j == k ? T(1) : T(0);
     ek -= Pt.projectionPt(ek);
     const auto n2(ek.dot(ek));
     if(n2 <= epsilon) continue;
-    Pt.row(ii ++) = ek / sqrt(n2);
+    Pt.row(residue[ii ++]) = ek / sqrt(n2);
   }
-  assert(Pt.rows() <= ii);
+  assert(residue.size() <= ii);
   cerr << "Q" << flush;
   const auto R(Pt * AA);
   cerr << "R" << flush;
