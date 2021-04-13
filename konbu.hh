@@ -32,6 +32,7 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   const auto upper(bu - bb);
   SimpleMatrix<T> AA(A.rows() * 2 - 1, A.cols() + 1);
   SimpleVector<T> one(AA.rows());
+  SimpleVector<T> bone(AA.rows());
   std::vector<std::pair<T, int> > fidx;
   fidx.reserve(A.rows());
   for(int i = 0; i < A.rows(); i ++) {
@@ -46,15 +47,17 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
       }
     } else {
       AA.row(i) /= upper[i];
-      AA(i, A.cols()) -= T(1);
+      // XXX:
+      // AA(i, A.cols()) -= T(1);
+      AA(i, A.cols()) += T(1);
+      bone[i] = T(1);
     }
     one[i] = T(1);
     assert(isfinite(AA.row(i).dot(AA.row(i))));
     if(A.rows() - 1 <= i) break;
     AA.row(i + A.rows()) = - AA.row(i);
-    if(! fidx.size() || fidx[fidx.size() - 1].second != i)
-      AA(i + A.rows(), A.cols()) -= T(2);
-    one[i + A.rows()] = T(1);
+    bone[i + A.rows()]   = - bone[i];
+    one[i + A.rows()]    = T(1);
   }
   SimpleMatrix<T> Pt(AA.cols(), AA.rows());
   for(int i = 0; i < Pt.rows(); i ++)
@@ -84,7 +87,7 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   assert(residue.size() <= ii);
   cerr << "Q" << flush;
   const auto R(Pt * AA);
-  const auto done(R.solve(Pt * one));
+  const auto done(R.solve(Pt * bone));
   cerr << "R" << flush;
   const auto on(Pt.projectionPt(one));
   fidx.reserve(fidx.size() + on.size());

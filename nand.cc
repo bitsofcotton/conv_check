@@ -74,15 +74,15 @@ int main(int argc, char* argv[])
     const auto r(pow(A(j, 0) * A(j, 1) * A(j, 2) * b[j], - num_t(40)));
     A.row(j) *= r;
     b[j]     *= r;
-    std::cerr << A(j, 0) << ", " << A(j, 1) << ", " << A(j, 2) << ", " << b[j] << std::endl;
+    std::cout << A(j, 0) << ", " << A(j, 1) << ", " << A(j, 2) << ", " << b[j] << std::endl;
   }
-  for(int i = - 90; i <= 90; i ++) {
+  for(int i = 0; i <= 900; i ++) {
     const auto r(pow(num_t(2), - num_t(i)));
     const auto err(A * inner<num_t>(A, - one * r + b, one * r + b));
           auto MM(abs(err[0]));
     for(int j = 1; j < err.size(); j ++)
       MM = max(MM, abs(err[j]));
-    std::cout << r << " : " << MM << std::endl;
+    std::cout << MM << std::endl;
   }
   
   return 0;
