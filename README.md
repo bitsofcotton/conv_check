@@ -27,8 +27,12 @@ After loop we get :
     SimpleMatrix<num_t> A(/* some rows */, /* some cols */);
     SimpleVector<num_t> b(A.rows());
     ...
-    const auto error(A * Linner<num_t>().inner(A, b * num_t(0), b) - b);
+    const auto error(A * inner<num_t>(A, b * num_t(0), b) - b);
     ...
+
+# Tips
+This program optimize inner point in Ax &lt;= bt meaning, so t moves \[0, \infty\[ .
+So if t &lt;= 1, it's unstable but this is specification of this.
 
 # Another download sites.
 * https://konbu.azurewebsites.net/ (Sample Site)
