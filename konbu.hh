@@ -32,8 +32,8 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   const auto upper(bu - bb);
   SimpleMatrix<T> AA(A.rows() * 2 - 1, A.cols() + 1);
   SimpleVector<T> one(AA.rows());
-  std::vector<std::pair<T, int> > equal;
-  equal.reserve(A.rows());
+  std::vector<std::pair<T, int> > fidx;
+  fidx.reserve(A.rows());
   for(int i = 0; i < A.rows(); i ++) {
     for(int j = 0; j < A.cols(); j ++)
       AA(i, j) = A(i, j);
@@ -41,12 +41,12 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
     if(upper[i] == T(0)) {
       const auto n2(AA.row(i).dot(AA.row(i)));
       if(n2 != T(0)) {
-        equal.emplace_back(std::make_pair(T(0), i));
+        fidx.emplace_back(std::make_pair(- T(1), i));
         AA.row(i) /= sqrt(n2);
       }
     } else {
       AA.row(i) /= upper[i];
-      AA(i, A.cols()) -= - T(1);
+      AA(i, A.cols()) -= T(1);
     }
     one[i] = T(1);
     assert(isfinite(AA.row(i).dot(AA.row(i))));
@@ -84,22 +84,10 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   const auto R(Pt * AA);
   cerr << "R" << flush;
   const auto on(Pt.projectionPt(- one));
-  std::vector<std::pair<T, int> > fidx;
-  fidx.reserve(on.size());
   for(int i = 0; i < on.size(); i ++)
     if(T(0) < on[i])
       fidx.emplace_back(std::make_pair(on[i], i));
   std::sort(fidx.begin(), fidx.end());
-  {
-    std::vector<std::pair<T, int> > work;
-    work.reserve(equal.size() + fidx.size());
-    for(int i = 0; i < equal.size(); i ++)
-      work.emplace_back(std::move(equal[i]));
-    for(int i = 0; i < fidx.size(); i ++)
-      work.emplace_back(std::move(fidx[i]));
-    fidx = std::move(work);
-    // N.B. there's a little possibility on {0, 1} problem.
-  }
   // worst case O(mn^2) over all in this function,
   // we can make this function better case it's O(n^3) but not now.
   for(int n_fixed = 0, idx = 0; n_fixed < Pt.rows() - 1 && idx < fidx.size(); n_fixed ++, idx ++) {
