@@ -37,7 +37,7 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   for(int i = 0; i < A.rows(); i ++) {
     for(int j = 0; j < A.cols(); j ++)
       AA(i, j) = A(i, j);
-    AA(i, A.cols()) = - bb[i];
+    AA(i, A.cols()) = bb[i];
     if(upper[i] == T(0)) {
       const auto n2(AA.row(i).dot(AA.row(i)));
       if(n2 != T(0)) {
@@ -46,13 +46,15 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
       }
     } else {
       AA.row(i) /= upper[i];
+      // N.B. [A, [-b 1]] [x t] <= {0, 1}^m, t == 1 <=>
+      //      bl - bb t <= Ax - bb t <= bu - bb t.
       AA(i, A.cols()) -= T(1);
     }
     one[i] = T(1);
     assert(isfinite(AA.row(i).dot(AA.row(i))));
     if(A.rows() - 1 <= i) break;
     AA.row(i + A.rows()) = - AA.row(i);
-    one[i + A.rows()] = T(1);
+    one[i + A.rows()] = - T(1);
   }
   SimpleMatrix<T> Pt(AA.cols(), AA.rows());
   for(int i = 0; i < Pt.rows(); i ++)
