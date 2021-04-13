@@ -46,15 +46,15 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
       }
     } else {
       AA.row(i) /= upper[i];
-      // N.B. [A, [-b 1]] [x t] <= {0, 1}^m, t == 1 <=>
-      //      bl - bb t <= Ax - bb t <= bu - bb t.
-      AA(i, A.cols()) -= T(1);
+      // N.B. [A, [b -1]] [x t] <= {0, 1}^m, t == - 1 <=>
+      //      bl - bb <= Ax + bb t <= bu - bb.
+      AA(i, A.cols()) -= - T(1);
     }
     one[i] = T(1);
     assert(isfinite(AA.row(i).dot(AA.row(i))));
     if(A.rows() - 1 <= i) break;
     AA.row(i + A.rows()) = - AA.row(i);
-    one[i + A.rows()] = - T(1);
+    one[i + A.rows()] = T(1);
   }
   SimpleMatrix<T> Pt(AA.cols(), AA.rows());
   for(int i = 0; i < Pt.rows(); i ++)
