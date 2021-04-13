@@ -37,7 +37,7 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   for(int i = 0; i < A.rows(); i ++) {
     for(int j = 0; j < A.cols(); j ++)
       AA(i, j) = A(i, j);
-    AA(i, A.cols()) = bb[i];
+    AA(i, A.cols()) = - bb[i];
     if(upper[i] == T(0)) {
       const auto n2(AA.row(i).dot(AA.row(i)));
       if(n2 != T(0)) {
@@ -46,9 +46,7 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
       }
     } else {
       AA.row(i) /= upper[i];
-      // N.B. [A, [b -1]] [x t] <= {0, 1}^m, t == - 1 <=>
-      //      bl - bb <= Ax + bb t <= bu - bb.
-      AA(i, A.cols()) -= - T(1);
+      AA(i, A.cols()) -= T(1);
     }
     one[i] = T(1);
     assert(isfinite(AA.row(i).dot(AA.row(i))));
@@ -84,11 +82,12 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   assert(residue.size() <= ii);
   cerr << "Q" << flush;
   const auto R(Pt * AA);
+  const auto done(R.solve(Pt * one));
   cerr << "R" << flush;
-  const auto on(Pt.projectionPt(- one));
+  const auto on(Pt.projectionPt(one));
+  fidx.reserve(fidx.size() + on.size());
   for(int i = 0; i < on.size(); i ++)
-    if(T(0) < on[i])
-      fidx.emplace_back(std::make_pair(on[i], i));
+    fidx.emplace_back(std::make_pair(abs(on[i]), i));
   std::sort(fidx.begin(), fidx.end());
   // worst case O(mn^2) over all in this function,
   // we can make this function better case it's O(n^3) but not now.
@@ -96,7 +95,6 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
     const auto& iidx(fidx[idx].second);
     const auto  orth(Pt.col(iidx));
     const auto  norm2orth(orth.dot(orth));
-    // XXX error:
     if(norm2orth <= epsilon) {
       n_fixed --;
       continue;
@@ -105,19 +103,15 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
 #pragma omp parallel for schedule(static, 1)
 #endif
     for(int j = 0; j < Pt.cols(); j ++)
-      Pt.setCol(j, Pt.col(j) - orth * (Pt.col(j).dot(orth) + T(n_fixed ? 0 : 1)) / norm2orth);
+      Pt.setCol(j, Pt.col(j) - orth * Pt.col(j).dot(orth) / norm2orth);
   }
   cerr << "G" << flush;
-#if defined(_WITHOUT_EIGEN_)
-  auto rvec(- R.solve(Pt * one));
-#else
-  auto rvec(- R.inverse() * (Pt * one));
-#endif
+  auto rvec(R.solve(Pt * one));
   cerr << "I" << flush;
   SimpleVector<T> rrvec(rvec.size() - 1);
   // | [A, - bb == - upper] [x t] | <= epsilon 1.
   for(int i = 0; i < rrvec.size(); i ++)
-    rrvec[i] = rvec[i] / rvec[rvec.size() - 1];
+    rrvec[i] = rvec[i] * done[done.size() - 1] - done[i] * rvec[rvec.size() - 1];
   return rrvec;
 }
 
