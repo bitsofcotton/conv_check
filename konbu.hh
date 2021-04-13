@@ -28,43 +28,41 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   // cout << A << endl << b << endl << c.transpose() << endl;
   cerr << " (" << A.rows() << ", " << A.cols() << ")";
   // bu - bb == A, bl - bb == - A <=> bu - bl == 2 A
-  const auto bb(bu - (bu - bl) / T(2));
+  const auto bb((bu + bl) / T(2));
   const auto upper(bu - bb);
   SimpleMatrix<T> AA(A.rows() * 2 - 1, A.cols() + 1);
   SimpleVector<T> one(AA.rows());
-  SimpleVector<T> bone(AA.rows());
-  std::vector<std::pair<T, int> > fidx;
-  fidx.reserve(A.rows());
+  std::vector<std::pair<T, int> > fidx0;
+  fidx0.reserve(A.rows());
   for(int i = 0; i < A.rows(); i ++) {
     for(int j = 0; j < A.cols(); j ++)
       AA(i, j) = A(i, j);
     AA(i, A.cols()) = - bb[i];
+    one[i]          = T(1);
+    assert(T(0) <= upper[i]);
     if(upper[i] == T(0)) {
       const auto n2(AA.row(i).dot(AA.row(i)));
       if(n2 != T(0)) {
-        fidx.emplace_back(std::make_pair(- T(1), i));
+        fidx0.emplace_back(std::make_pair(- T(1), i));
         AA.row(i) /= sqrt(n2);
-      }
-    } else {
+      } else
+        AA.row(i) *= n2;
+    } else
       AA.row(i) /= upper[i];
-      // XXX:
-      // AA(i, A.cols()) -= T(1);
-      AA(i, A.cols()) += T(1);
-      bone[i] = T(1);
-    }
-    one[i] = T(1);
     assert(isfinite(AA.row(i).dot(AA.row(i))));
     if(A.rows() - 1 <= i) break;
     AA.row(i + A.rows()) = - AA.row(i);
-    bone[i + A.rows()]   = - bone[i];
-    one[i + A.rows()]    = T(1);
+    one[i + A.rows()] = T(1);
   }
+  // N.B. we now have |[A -bb] [x t]| <= 1 condition.
+  // N.B. there's no difference |[A - bb] [x t]|^2 <= 1 condition in this.
+  //      but not with mixed condition.
   SimpleMatrix<T> Pt(AA.cols(), AA.rows());
   for(int i = 0; i < Pt.rows(); i ++)
     for(int j = 0; j < Pt.cols(); j ++)
       Pt(i, j) = T(0);
   std::vector<int> residue;
-  for(int i = 0; i < AA.cols(); i ++) {
+  for(int i = 0; i < Pt.rows(); i ++) {
     const auto Atrowi(AA.col(i));
     const auto work(Atrowi - Pt.projectionPt(Atrowi));
     const auto n2(work.dot(work));
@@ -87,36 +85,75 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   assert(residue.size() <= ii);
   cerr << "Q" << flush;
   const auto R(Pt * AA);
-  const auto done(R.solve(Pt * bone));
   cerr << "R" << flush;
+  // we now have: Q [R [x t] ] <= {0, 1}^m cond.
+        auto Pt0(Pt);
+        int  ntry(0);
+ retry:
   const auto on(Pt.projectionPt(one));
+        auto fidx(fidx0);
   fidx.reserve(fidx.size() + on.size());
   for(int i = 0; i < on.size(); i ++)
     fidx.emplace_back(std::make_pair(abs(on[i]), i));
   std::sort(fidx.begin(), fidx.end());
-  // worst case O(mn^2) over all in this function,
-  // we can make this function better case it's O(n^3) but not now.
+  // sort by: |<Q^t(1), q_k>|, we subject to minimize each, to do this,
+  //   maximize minimum q_k orthogonality.
   for(int n_fixed = 0, idx = 0; n_fixed < Pt.rows() - 1 && idx < fidx.size(); n_fixed ++, idx ++) {
     const auto& iidx(fidx[idx].second);
     const auto  orth(Pt.col(iidx));
-    const auto  norm2orth(orth.dot(orth));
-    if(norm2orth <= epsilon) {
+    const auto  n2(orth.dot(orth));
+    if(n2 <= epsilon) {
       n_fixed --;
       continue;
     }
+    // N.B. O(mn) can be writed into O(lg m + lg n) in many core cond.
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
     for(int j = 0; j < Pt.cols(); j ++)
-      Pt.setCol(j, Pt.col(j) - orth * Pt.col(j).dot(orth) / norm2orth);
+      Pt.setCol(j, Pt.col(j) - orth * Pt.col(j).dot(orth) / n2);
   }
-  cerr << "G" << flush;
-  auto rvec(R.solve(Pt * one));
-  cerr << "I" << flush;
+  // N.B. we now have: |Q x'| <= 1 * epsilon condition.
+        auto rvec(Pt * one);
+  cerr << "I(" << rvec.dot(rvec) << ", " << rvec[rvec.size() - 1] << ")" << flush;
+  rvec = R.solve(rvec);
+  const auto errv(AA * rvec);
+        auto err(abs(errv[0]));
+  for(int i = 1; i < errv.size(); i ++)
+    err = max(err, abs(errv[i]));
+  const auto eps(err / rvec[rvec.size() - 1]);
+  //      <=> |AA rvec| = |[A -bb] [x t]| <= 1 * epsilon.
+  //      <=> - 1 * |epsilon / t| <= Ax - bb <= 1 * |epsilon / t|.
+  //      if we have eps := |epsilon / t| <= 1 condition, it's ok.
   SimpleVector<T> rrvec(rvec.size() - 1);
-  // | [A, - bb == - upper] [x t] | <= epsilon 1.
-  for(int i = 0; i < rrvec.size(); i ++)
-    rrvec[i] = rvec[i] * done[done.size() - 1] / rvec[rvec.size() - 1] - done[i];
+  // N,B. ((if it's in retry, right hand side is 1 - 1/sqrt(2).))
+  if(isfinite(eps) && ! isnan(eps) && abs(eps) <= (ntry ? T(1) - T(1) / sqrt(T(2)) : T(1))) {
+    for(int i = 0; i < rrvec.size(); i ++)
+      rrvec[i] = rvec[i] * eps;
+  } else {
+    if(! ntry) {
+      // otherwise, we fix t first:
+      ntry ++;
+      for(int i = 0; i < Pt.rows(); i ++)
+        Pt.row(i) = std::move(Pt0.row(i));
+      SimpleVector<T> orth(Pt.rows());
+      for(int j = 0; j < orth.size(); j ++)
+        orth[j] = T(j < orth.size() - 1 ? 0 : 1);
+      const auto n2(T(1) / sqrt(T(2)));
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static, 1)
+#endif
+      for(int j = 0; j < Pt.cols(); j ++)
+      for(int j = 0; j < Pt.cols(); j ++)
+        Pt.setCol(j, Pt.col(j) - orth * Pt.col(j).dot(orth) / n2);
+      // then, retry:
+      goto retry;
+    }
+    // if both the condition we fixed is fail, do best:
+    cerr << "XXX" << flush;
+    for(int i = 0; i < rrvec.size(); i ++)
+      rrvec[i] = isfinite(eps) && ! isnan(eps) ? rvec[i] * eps : T(0);
+  }
   return rrvec;
 }
 

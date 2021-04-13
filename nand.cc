@@ -65,25 +65,38 @@ int main(int argc, char* argv[])
   SimpleMatrix<num_t> A(4, 3);
   SimpleVector<num_t> b(A.rows());
   SimpleVector<num_t> one(A.rows());
+  const auto computer(- 1);
+  num_t MM(0);
   for(int j = 0; j < one.size(); j ++) {
     A(j, 0) = num_t((j & 1) ? 1 : 2);
     A(j, 1) = num_t(((j >> 1) & 1) ? 1 : 2);
-    A(j, 2) = num_t(((j & 1) && ((j >> 1) & 1)) ? 2 : 1);
-    //A(j, 3) = num_t(1);
-    one[j]  = b[j] = num_t(1);
-    const auto r(pow(A(j, 0) * A(j, 1) * A(j, 2) * b[j], - num_t(40)));
+    //A(j, 2) = num_t(((j & 1) && ((j >> 1) & 1)) ? 2 : 1);
+    A(j, 2) = num_t(1);
+    b[j]    = num_t(((j & 1) && ((j >> 1) & 1)) ? 2 : 1);
+    one[j]  = num_t(1);
+    const auto r(pow(A(j, 0) * A(j, 1) * A(j, 2) * b[j], num_t(computer)));
+    for(int i = 0; i < A.cols(); i ++)
+      A(j, i) = num_t(1) / A(j, i);
+    b[j]      = num_t(1) / b[j];
     A.row(j) *= r;
     b[j]     *= r;
+    MM = max(MM, abs(A(j, 0)));
+    MM = max(MM, abs(A(j, 1)));
+    MM = max(MM, abs(A(j, 2)));
+    MM = max(MM, abs(b[j]));
+  }
+  A  /= MM;
+  b  /= MM;
+  for(int j = 0; j < one.size(); j ++)
     std::cout << A(j, 0) << ", " << A(j, 1) << ", " << A(j, 2) << ", " << b[j] << std::endl;
-  }
-  for(int i = 0; i <= 900; i ++) {
-    const auto r(pow(num_t(2), - num_t(i)));
-    const auto err(A * inner<num_t>(A, - one * r + b, one * r + b));
-          auto MM(abs(err[0]));
-    for(int j = 1; j < err.size(); j ++)
-      MM = max(MM, abs(err[j]));
-    std::cout << MM << std::endl;
-  }
+  const auto r(pow(num_t(2), - num_t(abs(computer) * 4)));
+  const auto err(A * inner<num_t>(A, b - one * r, b + one * r) - b);
+        auto M(abs(err[0]));
+  for(int j = 1; j < err.size(); j ++)
+    M = max(M, abs(err[j]));
+  std::cout << M << std::endl;
+  // XXX: maxima's simplex result of M limit seems to 2/5 * |delta|.
+  // XXX: konbu method result M limit seems to |delta|.
   
   return 0;
 }
