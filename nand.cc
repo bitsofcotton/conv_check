@@ -95,8 +95,9 @@ int main(int argc, char* argv[])
   for(int j = 1; j < err.size(); j ++)
     M = max(M, abs(err[j]));
   std::cout << M << std::endl;
-  // XXX: maxima's simplex result of M / ||A*inner-b*t|| limit seems unbounded.
-  // XXX: konbu method result M / |inner smallest| limit seems to 1.
+  // N.B. maxima's simplex result of M / ||A*inner-b*t|| limit seems unbounded.
+  //   konbu method result of this M / |inner smallest| limit seems to 1.
+  //   this is because we can have trivial inner point 0 on |A [x t]| <= 0 condition.
   return 0;
 }
 
