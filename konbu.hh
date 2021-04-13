@@ -53,7 +53,7 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
     if(A.rows() - 1 <= i) break;
     AA.row(i + A.rows()) = - AA.row(i);
     if(fidx.size() && fidx[fidx.size() - 1].second == i)
-      AA(i + A.rows(), A.cols()) += T(2);
+      AA(i + A.rows(), A.cols()) -= T(2);
     one[i + A.rows()] = T(1);
   }
   SimpleMatrix<T> Pt(AA.cols(), AA.rows());
