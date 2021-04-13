@@ -95,9 +95,8 @@ int main(int argc, char* argv[])
   for(int j = 1; j < err.size(); j ++)
     M = max(M, abs(err[j]));
   std::cout << M << std::endl;
-  // XXX: maxima's simplex result of M limit seems to 2/5 * |delta|.
-  // XXX: konbu method result M limit seems to |delta|.
-  
+  // XXX: maxima's simplex result of M / ||A*inner-b*t|| limit seems unbounded.
+  // XXX: konbu method result M / |inner smallest| limit seems to 1.
   return 0;
 }
 
