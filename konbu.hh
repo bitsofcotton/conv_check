@@ -52,6 +52,8 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
     assert(isfinite(AA.row(i).dot(AA.row(i))));
     if(A.rows() - 1 <= i) break;
     AA.row(i + A.rows()) = - AA.row(i);
+    if(fidx.size() && fidx[fidx.size() - 1].second == i)
+      AA(i + A.rows(), A.cols()) += T(2);
     one[i + A.rows()] = T(1);
   }
   SimpleMatrix<T> Pt(AA.cols(), AA.rows());
@@ -111,7 +113,7 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   SimpleVector<T> rrvec(rvec.size() - 1);
   // | [A, - bb == - upper] [x t] | <= epsilon 1.
   for(int i = 0; i < rrvec.size(); i ++)
-    rrvec[i] = rvec[i] * done[done.size() - 1] - done[i] * rvec[rvec.size() - 1];
+    rrvec[i] = rvec[i] * done[done.size() - 1] / rvec[rvec.size() - 1] - done[i];
   return rrvec;
 }
 
