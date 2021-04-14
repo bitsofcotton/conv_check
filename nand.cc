@@ -65,36 +65,35 @@ int main(int argc, char* argv[])
   SimpleMatrix<num_t> A(5, 4);
   SimpleVector<num_t> b(A.rows());
   SimpleVector<num_t> one(A.rows());
-  const auto computer(- 200);
+  const auto computer(- 4);
   for(int j = 0; j < 4; j ++) {
     A(j, 0) = num_t((j & 1) ? 1 : 2);
     A(j, 1) = num_t(((j >> 1) & 1) ? 1 : 2);
     A(j, 2) = num_t(((j & 1) && ((j >> 1) & 1)) ? 2 : 1);
     A(j, 3) = num_t(1);
     for(int i = 0; i < 3; i ++)
-      A(j, i) = tan(A(j, i) / num_t(2) * atan2(num_t(1), num_t(1)));
+      A(j, i) = tan(A(j, i) / num_t(4));
     one[j]  = num_t(1);
     b[j]    = num_t(0);
-    A.row(j) *= pow(A(j, 0) * A(j, 1) * A(j, 2) * A(j, 3), num_t(computer));
+    A.row(j) *= pow(abs(A(j, 0) * A(j, 1) * A(j, 2) * A(j, 3)), num_t(computer));
   }
-  const auto r(pow(num_t(4), num_t(computer)));
+  const auto r(pow(tan(num_t(1) / num_t(2)), num_t(computer)));
   for(int i = 0; i < A.cols(); i ++)
-    A(A.rows() - 1, i) = r;
-  b[b.size() - 1] = r;
-  one[one.size() - 1] = num_t(1);
+    A(A.rows() - 1, i) = i == 2 ? num_t(1) : num_t(0);
+  b[b.size() - 1] = num_t(1);
+  one[one.size() - 1] = num_t(0);
   for(int j = 0; j < one.size(); j ++)
     std::cout << A(j, 0) << ", " << A(j, 1) << ", " << A(j, 2) << ", " << A(j, 3) << ", " << b[j] << std::endl;
-  for(int i = 0; i < 3000; i ++) {
-    const auto r(pow(num_t(4), - num_t(i)));
-    const auto err(A * inner<num_t>(A, b - one * r, b + one * r) - b);
-          auto M(abs(err[0]));
-          auto m(abs(err[0]));
-    for(int j = 1; j < err.size(); j ++) {
-      M = max(M, abs(err[j]));
-      m = min(m, abs(err[j]));
-    }
-    std::cout << m << ", " << M << std::endl;
+  const num_t rr(1);
+  const auto in(inner<num_t>(A, b - one * rr, b + one * rr));
+  const auto err(A * in - b);
+        auto M(abs(err[0]));
+        auto m(abs(err[0]));
+  for(int j = 1; j < err.size(); j ++) {
+    M = max(M, abs(err[j]));
+    m = min(m, abs(err[j]));
   }
+  std::cout << m << ", " << M << ", " << sqrt(in.dot(in)) << std::endl;
   // result of this M / inf |A(i, j)| limit seems to 1.
   //                m / inf |A(i, j)| seems to be unbounded.
   return 0;
