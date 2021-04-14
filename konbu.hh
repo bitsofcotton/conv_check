@@ -50,7 +50,8 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
         AA.row(i) *= n2;
     } else
       AA.row(i) /= upper[i];
-    assert(isfinite(AA.row(i).dot(AA.row(i))));
+    const auto A2(AA.row(i).dot(AA.row(i)));
+    assert(isfinite(A2) && ! isnan(A2));
     if(A.rows() - 1 <= i) break;
     AA.row(i + A.rows()) = - AA.row(i);
     one[i + A.rows()] = T(1);
@@ -62,6 +63,7 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
       AA(i, j) = T(j == ii / 2 ? (ii & 1 ? - 1 : 1) : 0);
     AA(i, A.cols()) = T(ii & 1 ? 1 : - 1);
     AA.row(i) /= ee;
+    one[i] = T(1);
   }
   // N.B. we now have |[A -bb] [x t]| <= 1 condition.
   // N.B. there's no difference |[A - bb] [x t]|^2 <= 1 condition in this.
@@ -100,8 +102,10 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
         auto fidx(fidx0);
   fidx.reserve(fidx.size() + on.size());
   for(int i = 0; i < on.size(); i ++)
-    fidx.emplace_back(std::make_pair(abs(on[i]), i));
-  std::sort(fidx.begin(), fidx.end());
+    if(isfinite(on[i]) && ! isnan(on[i]))
+      fidx.emplace_back(std::make_pair(abs(on[i]), i));
+  if(fidx.size())
+    std::sort(fidx.begin(), fidx.end());
   // sort by: |<Q^t(1), q_k>|, we subject to minimize each, to do this,
   //   maximize minimum q_k orthogonality.
   for(int n_fixed = 0, idx = 0; n_fixed < Pt.rows() - 1 && idx < fidx.size(); n_fixed ++, idx ++) {
@@ -120,28 +124,29 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
       Pt.setCol(j, Pt.col(j) - orth * Pt.col(j).dot(orth) / n2);
   }
   // N.B. we now have: |Q x'| <= 1 * epsilon condition.
-        auto rvec(Pt * one);
-  cerr << "I(" << rvec.dot(rvec) << ", " << rvec[rvec.size() - 1] << ")" << flush;
-  rvec = R.solve(rvec);
+        auto rrvec(Pt * one);
+  const auto r2(rrvec.dot(rrvec));
+  cerr << "I(" << r2 << ", " << rrvec[rrvec.size() - 1] << ")" << flush;
+  SimpleVector<T> rvec(rrvec.size() - 1);
+  if(! (isfinite(r2) && ! isnan(r2))) {
+    for(int i = 0; i < rvec.size(); i ++)
+      rvec[i] = T(0);
+    return rvec;
+  }
+  rrvec = R.solve(rrvec);
   //      <=> |AA rvec| = |[A -bb] [x t]| <= 1 * epsilon.
   //      <=> - 1 * |epsilon / t| <= Ax - bb <= 1 * |epsilon / t|.
   //      if we have eps := |epsilon / t| <= 1 condition, it's ok.
-  SimpleVector<T> rrvec(rvec.size() - 1);
-  // N,B. ((if it's in retry, right hand side is 1 - 1/sqrt(2).))
-  if(rvec[rvec.size() - 1] != T(0)) {
-    for(int i = 0; i < rrvec.size(); i ++)
-      rrvec[i] = rvec[i] / rvec[rvec.size() - 1];
-    const auto err(A * rrvec - bb);
-          auto M(err[0] - T(1));
-    for(int i = 1; i < err.size(); i ++)
-      M = max(M, err[i] - T(1));
-    if(T(0) < M) cerr << "?infeas?" << flush;
-  } else {
-    cerr << "?infeasNaN?" << flush;
-    for(int i = 0; i < rrvec.size(); i ++)
-      rrvec[i] = rvec[i];
-  }
-  return rrvec;
+  for(int i = 0; i < rvec.size(); i ++)
+    rvec[i] = rrvec[i];
+  const auto errb(A * rvec - bb);
+        T    M(0);
+  for(int i = 0; i < errb.size(); i ++)
+    if(upper[i] != T(0))
+      M = max(M, abs(errb[i] / upper[i]));
+  if(isfinite(M) && ! isnan(M) && M != T(0))
+    return rvec /= M;
+  return rvec;
 }
 
 #define _LINEAR_OPT_

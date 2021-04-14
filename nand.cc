@@ -62,40 +62,41 @@ int main(int argc, char* argv[])
 {
   std::cout.precision(30);
   std::cerr.precision(30);
-  SimpleMatrix<num_t> A(4, 3);
+  SimpleMatrix<num_t> A(5, 4);
   SimpleVector<num_t> b(A.rows());
   SimpleVector<num_t> one(A.rows());
-  const auto computer(40);
-  num_t MM(0);
-  for(int j = 0; j < one.size(); j ++) {
+  const auto computer(8);
+  for(int j = 0; j < 4; j ++) {
     A(j, 0) = num_t((j & 1) ? 1 : 2);
     A(j, 1) = num_t(((j >> 1) & 1) ? 1 : 2);
-    //A(j, 2) = num_t(((j & 1) && ((j >> 1) & 1)) ? 2 : 1);
-    A(j, 2) = num_t(1);
-    b[j]    = num_t(((j & 1) && ((j >> 1) & 1)) ? 2 : 1);
+    A(j, 2) = num_t(((j & 1) && ((j >> 1) & 1)) ? 2 : 1);
+    A(j, 3) = num_t(1);
     one[j]  = num_t(1);
-    const auto r(pow(A(j, 0) * A(j, 1) * b[j], num_t(computer)));
+    b[j]    = num_t(0);
+    const auto r(pow(A(j, 0) * A(j, 1) * A(j, 2) * A(j, 3), num_t(computer)));
     for(int i = 0; i < A.cols(); i ++)
-      A(j, i) = num_t(1) / A(j, i);
-    b[j]      = num_t(1) / b[j];
-    A.row(j) *= r;
-    b[j]     *= r;
-    MM = max(MM, abs(A(j, 0)));
-    MM = max(MM, abs(A(j, 1)));
-    MM = max(MM, abs(A(j, 2)));
-    MM = max(MM, abs(b[j]));
+      A(j, i) = r / A(j, i);
   }
-  A  /= MM;
-  b  /= MM;
+  const auto r(pow(num_t(4), num_t(computer)));
+  for(int i = 0; i < A.cols(); i ++)
+    A(A.rows() - 1, i) = r;
+  b[b.size() - 1] = r;
+  one[one.size() - 1] = num_t(1);
   for(int j = 0; j < one.size(); j ++)
-    std::cout << A(j, 0) << ", " << A(j, 1) << ", " << A(j, 2) << ", " << b[j] << std::endl;
-  const auto r(pow(num_t(4), - num_t(abs(computer))) / MM);
-  const auto in(inner<num_t>(A, b - one * r, b + one * r));
-  const auto err(A * in - b);
-        auto M(abs(err[0]));
-  for(int j = 1; j < err.size(); j ++)
-    M = max(M, abs(err[j]));
-  std::cout << M << ", " << sqrt(in.dot(in)) << std::endl;
+    std::cout << A(j, 0) << ", " << A(j, 1) << ", " << A(j, 2) << ", " << A(j, 3) << ", " << b[j] << std::endl;
+  for(int i = 0; i < 300; i ++) {
+    const auto r(pow(num_t(4), - num_t(i)));
+    const auto in(inner<num_t>(A, b - one * r, b + one * r));
+    const auto err(A * in - b);
+          auto M(abs(err[0]));
+          auto m(abs(err[0]));
+    for(int j = 1; j < err.size(); j ++) {
+      M = max(M, abs(err[j]));
+      m = min(m, abs(err[j]));
+    }
+    const auto ni(sqrt(in.dot(in)));
+    std::cout << m / ni << ", " << M / ni << std::endl;
+  }
   // N.B. maxima's simplex result of M / ||A*inner-b*t|| limit seems unbounded.
   //   konbu method result of this M / |inner smallest| limit seems to 1.
   //   this is because we can have trivial inner point 0 on |A [x t]| <= 0 condition.
