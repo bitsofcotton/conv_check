@@ -139,11 +139,13 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   //      if we have eps := |epsilon / t| <= 1 condition, it's ok.
   for(int i = 0; i < rvec.size(); i ++)
     rvec[i] = rrvec[i];
+  // bl - bb <= A * rvec - bb <= bu - bb.
   const auto errb(A * rvec - bb);
         T    M(0);
   for(int i = 0; i < errb.size(); i ++)
     if(upper[i] != T(0))
       M = max(M, abs(errb[i] / upper[i]));
+  // (bl - bb)' <= A * rvec * M - 1 <= (bu - bb)'.
   if(isfinite(M) && ! isnan(M) && M != T(0))
     return rvec /= M;
   return rvec;
