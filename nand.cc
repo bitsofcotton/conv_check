@@ -71,6 +71,8 @@ int main(int argc, char* argv[])
     A(j, 1) = num_t(((j >> 1) & 1) ? 1 : 2);
     A(j, 2) = num_t(((j & 1) && ((j >> 1) & 1)) ? 2 : 1);
     A(j, 3) = num_t(1);
+    for(int i = 0; i < 3; i ++)
+      A(j, i) = tan(A(j, i) / num_t(2) * atan2(num_t(1), num_t(1)));
     one[j]  = num_t(1);
     b[j]    = num_t(0);
     A.row(j) *= pow(A(j, 0) * A(j, 1) * A(j, 2) * A(j, 3), num_t(computer));
