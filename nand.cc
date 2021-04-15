@@ -56,7 +56,6 @@
 #endif
 
 #include "simplelin.hh"
-#include "konbu.hh"
 
 int main(int argc, char* argv[])
 {
@@ -79,7 +78,7 @@ int main(int argc, char* argv[])
   }
   for(int j = 0; j < one.size(); j ++)
     std::cout << A(j, 0) << ", " << A(j, 1) << ", " << A(j, 2) << ", " << A(j, 3) << std::endl;
-  const auto in(inner<num_t>(A, one, one));
+  const auto in(A.inner(one, one));
   const auto err(A * in);
         auto M(abs(err[0]));
         auto m(abs(err[0]));

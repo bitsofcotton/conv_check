@@ -56,7 +56,6 @@
 #endif
 
 #include "simplelin.hh"
-#include "konbu.hh"
 
 #define MIN_VAL 1000
 #define M_VAL   1000000
@@ -81,7 +80,7 @@ int main(int argc, char* argv[])
   std::cerr.precision(30);
   
   b *= num_t(1000);
-  const auto error(A * inner<num_t>(A, b * num_t(0), b) - b);
+  const auto error(A * A.inner(b * num_t(0), b) - b);
         auto M(error[0]);
   for(int i = 1; i < error.size(); i ++)
     M = max(M, error[i]);
