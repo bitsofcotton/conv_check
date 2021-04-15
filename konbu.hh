@@ -33,8 +33,8 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   const auto upper(bu - bb);
   SimpleMatrix<T> AA(A.rows() * 2 - 1 + A.cols() * 2, A.cols() + 1);
   SimpleVector<T> one(AA.rows());
-  std::vector<std::pair<T, int> > fidx0;
-  fidx0.reserve(A.rows());
+  std::vector<std::pair<T, int> > fidx;
+  fidx.reserve(A.rows());
   for(int i = 0; i < A.rows(); i ++) {
     for(int j = 0; j < A.cols(); j ++)
       AA(i, j) = A(i, j);
@@ -44,7 +44,7 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
     if(upper[i] == T(0)) {
       const auto n2(AA.row(i).dot(AA.row(i)));
       if(n2 != T(0)) {
-        fidx0.emplace_back(std::make_pair(- T(1), i));
+        fidx.emplace_back(std::make_pair(- T(1), i));
         AA.row(i) /= sqrt(n2);
       } else
         AA.row(i) *= n2;
@@ -99,23 +99,23 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
   cerr << "R" << flush;
   // we now have: Q [R [x t] ] <= {0, 1}^m cond.
   const auto on(Pt.projectionPt(one));
-        auto fidx(fidx0);
   fidx.reserve(fidx.size() + on.size());
   for(int i = 0; i < on.size(); i ++)
     if(isfinite(on[i]) && ! isnan(on[i]))
       fidx.emplace_back(std::make_pair(abs(on[i]), i));
   if(fidx.size())
     std::sort(fidx.begin(), fidx.end());
+  std::vector<int> fix;
+  fix.reserve(Pt.rows());
   // sort by: |<Q^t(1), q_k>|, we subject to minimize each, to do this,
   //   maximize minimum q_k orthogonality.
-  for(int n_fixed = 0, idx = 0; n_fixed < Pt.rows() - 1 && idx < fidx.size(); n_fixed ++, idx ++) {
+  for(int idx = 0; fix.size() < Pt.rows() - 1 && idx < fidx.size(); idx ++) {
     const auto& iidx(fidx[idx].second);
     const auto  orth(Pt.col(iidx));
     const auto  n2(orth.dot(orth));
-    if(n2 <= epsilon) {
-      n_fixed --;
+    if(n2 <= epsilon)
       continue;
-    }
+    fix.emplace_back(fidx[idx].second);
     // N.B. O(mn) can be writed into O(lg m + lg n) in many core cond.
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
@@ -123,32 +123,16 @@ template <typename T> SimpleVector<T> inner(const SimpleMatrix<T>& A, const Simp
     for(int j = 0; j < Pt.cols(); j ++)
       Pt.setCol(j, Pt.col(j) - orth * Pt.col(j).dot(orth) / n2);
   }
-  // N.B. we now have: |Q x'| <= 1 * epsilon condition.
-        auto rrvec(Pt * one);
-  const auto r2(rrvec.dot(rrvec));
-  cerr << "I(" << r2 << ", " << rrvec[rrvec.size() - 1] << ")" << flush;
-  SimpleVector<T> rvec(rrvec.size() - 1);
-  if(! (isfinite(r2) && ! isnan(r2))) {
-    for(int i = 0; i < rvec.size(); i ++)
-      rvec[i] = T(0);
-    return rvec;
+  // N.B. now we have fix indexes that to be AA_fix [x 1] * t == 0.
+  assert(fix.size() == Pt.rows() - 1);
+  SimpleMatrix<T> Afix(fix.size(), fix.size());
+  SimpleVector<T> f(Afix.rows());
+  for(int i = 0; i < fix.size(); i ++) {
+    for(int j = 0; j < Afix.cols(); j ++)
+      Afix(i, j) = AA(fix[i], j);
+    f[i] = - AA(fix[i], A.cols());
   }
-  rrvec = R.solve(rrvec);
-  //      <=> |AA rvec| = |[A -bb] [x t]| <= 1 * epsilon.
-  //      <=> - 1 * |epsilon / t| <= Ax - bb <= 1 * |epsilon / t|.
-  //      if we have eps := |epsilon / t| <= 1 condition, it's ok.
-  for(int i = 0; i < rvec.size(); i ++)
-    rvec[i] = rrvec[i];
-  // bl - bb <= A * rvec - bb <= bu - bb.
-  const auto errb(A * rvec - bb);
-        T    M(0);
-  for(int i = 0; i < errb.size(); i ++)
-    if(upper[i] != T(0))
-      M = max(M, abs(errb[i] / upper[i]));
-  // (bl - bb)' <= A * rvec * M - 1 <= (bu - bb)'.
-  if(isfinite(M) && ! isnan(M) && M != T(0))
-    return rvec /= M;
-  return rvec;
+  return Afix.solve(f);
 }
 
 #define _LINEAR_OPT_
