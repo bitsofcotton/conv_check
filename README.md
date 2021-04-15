@@ -19,7 +19,7 @@ b_l&lt;=Ax&lt;=b_u
 
 to minimize: |&lt;p\_k,x&gt;|, we choose orthogonality condition on (P P^t 1)'s minimum to fix.
 if P P^t 1 == 1, this causes fixed inequalities to be the minimum on the meaning to them.
-otherwise, it minimizes |&lt;p\_k,x&lt;+b\_k'| &lt;=1 &lt;=&gt; |&lt;p\_k,x&lt;|&lt;=1\* t'.
+otherwise, it minimizes |&lt;p\_k,x&gt;+b\_k'| &lt;=1 &lt;=&gt; |&lt;p\_k,x&gt;|&lt;=1\* t'.
 
 # Usage
     // if you need, please scope with namespace block, but include guard may harms.
