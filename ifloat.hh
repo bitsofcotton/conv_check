@@ -1775,7 +1775,7 @@ template <typename T> using complex = Complex<T>;
 # elif _FLOAT_BITS_ == 256
   typedef DUInt<uint64_t, 64> uint128_t;
   typedef DUInt<uint128_t, 128> uint256_t;
-  typedef Signed<uint256_t, 128> int256_t;
+  typedef Signed<uint256_t, 256> int256_t;
   typedef uint256_t myuint;
   typedef int256_t  myint;
   typedef SimpleFloat<myuint, DUInt<myuint, 256>, 256, int64_t> myfloat;
@@ -1783,12 +1783,22 @@ template <typename T> using complex = Complex<T>;
 # elif _FLOAT_BITS_ == 512
   typedef DUInt<uint64_t, 64> uint128_t;
   typedef DUInt<uint128_t, 128> uint256_t;
-  typedef DUInt<uint256_t, 128> int256_t;
-  typedef Signed<uint512_t, 128> int1024_t;
+  typedef DUInt<uint256_t, 256> uint512_t;
+  typedef Signed<uint512_t, 512> int512_t;
   typedef uint512_t myuint;
   typedef int512_t  myint;
   typedef SimpleFloat<myuint, DUInt<myuint, 512>, 512, int64_t> myfloat;
-  #define mybits 256
+  #define mybits 512
+# elif _FLOAT_BITS_ == 1024
+  typedef DUInt<uint64_t, 64> uint128_t;
+  typedef DUInt<uint128_t, 128> uint256_t;
+  typedef DUInt<uint256_t, 256> uint512_t;
+  typedef DUInt<uint512_t, 512> uint1024_t;
+  typedef Signed<uint1024_t, 1024> int1024_t;
+  typedef uint1024_t myuint;
+  typedef int1024_t  myint;
+  typedef SimpleFloat<myuint, DUInt<myuint, 1024>, 1024, int64_t> myfloat;
+  #define mybits 1024
 # else
 #   error cannot handle float
 # endif
