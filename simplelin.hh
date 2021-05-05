@@ -849,7 +849,7 @@ template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::SVD() const {
         mul(i, j) = i < ii || j < ii ? T(i == j ? 1 : 0) :
           work(i - ii, j - ii);
     left = left * mul;
-    s    = mul.transpose() * s * mul;
+    s    = mul * s * mul.transpose();
   }
   for(int i = 0; i < left.rows(); i ++) {
     int jj(i);
