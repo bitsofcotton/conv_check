@@ -769,19 +769,19 @@ template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::QR() const {
 
 template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::SVD() const {
   if(this->cols() < this->rows()) {
-    auto res(this->transpose() * this->transpose().SVD());
+    auto res(((* this) * this->transpose().SVD()).transpose());
     vector<int> residue;
-    residue.reserve(res.cols());
-    for(int i = 0; i < res.cols(); i ++) {
-      const auto r2(res.col(i).dot(res.col(i)));
+    residue.reserve(res.rows());
+    for(int i = 0; i < res.rows(); i ++) {
+      const auto r2(res.row(i).dot(res.row(i)));
       if(epsilon < r2)
-        res.setCol(i, res.col(i) / sqrt(r2));
+        res.row(i) /= sqrt(r2);
       else
         residue.emplace_back(i);
     }
     if(residue.size())
-      return res.transpose().fillP(residue);
-    return res.transpose();
+      return res.fillP(residue);
+    return res;
   }
   for(int i = 0; i < this->rows(); i ++)
     for(int j = 0; j < this->cols(); j ++)
