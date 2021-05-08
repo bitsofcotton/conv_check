@@ -8,9 +8,8 @@
 #include <algorithm>
 #include <assert.h>
 
-#include "ifloat.hh"
+#include "lieonn.hh"
 typedef myfloat num_t;
-#include "simplelin.hh"
 
 #define MIN_VAL 1000
 #define M_VAL   1000000
