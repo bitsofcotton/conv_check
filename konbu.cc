@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <algorithm>
 #include <assert.h>
+#include <sys/resource.h>
 
 #include "lieonn.hh"
 typedef myfloat num_t;
@@ -34,12 +35,18 @@ int main(int argc, char* argv[])
   std::cerr.precision(30);
   
   b *= num_t(1000);
+  struct rusage start, end;
+  getrusage(RUSAGE_SELF, &start);
   const auto error(A * A.inner(b * num_t(0), b) - b);
+  getrusage(RUSAGE_SELF, &end);
         auto M(error[0]);
   for(int i = 1; i < error.size(); i ++)
     M = max(M, error[i]);
   std::cout << A << b << std::endl;
   std::cout << M << ", " << sqrt(b.dot(b)) << std::endl;
+  std::cout << end.ru_utime.tv_sec - start.ru_utime.tv_sec << "[s] and ";
+  std::cout << end.ru_utime.tv_usec - start.ru_utime.tv_usec << "[mu s]";
+  std::cout << std::endl << std::endl;
   return 0;
 }
 
