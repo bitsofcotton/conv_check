@@ -11,34 +11,32 @@
 #include "lieonn.hh"
 typedef myfloat num_t;
 
-int main(int argc, char* argv[])
-{
-  std::cout.precision(30);
-  std::cerr.precision(30);
-  SimpleMatrix<num_t> A(5, 4);
+#if ! defined(_FLOAT_BITS_)
+#define _FLOAT_BITS_ 63
+#endif
+#include <cmath>
+
+int main(int argc, char* argv[]) {
+  SimpleMatrix<num_t> A(7, 5);
   SimpleVector<num_t> left(A.rows());
   SimpleVector<num_t> right(A.rows());
   for(int j = 0; j < 4; j ++) {
-    SimpleVector<num_t> work(3);
+    SimpleVector<num_t> work(4);
     work[0]  = num_t(j & 1);
     work[1]  = num_t((j >> 1) & 1);
     work[2]  = num_t(((j & 1) && ((j >> 1) & 1)) ? 0 : 1);
+    work[3]  = (work[0] + work[1] + work[2]) / num_t(2) / num_t(3);
     A.row(j) = makeProgramInvariant<num_t>(work);
-    left[j]  = - num_t(100);
-    right[j] =   num_t(100);
+    assert(A.cols() == A.row(j).size());
+    left[j]  = - (right[j] = sqrt(A.epsilon));
   }
-  A(4, 0) = A(4, 1) = A(4, 3) = num_t(0);
-  A(4, 2) = num_t(1);
-  left[4] = num_t(1) / num_t(2);
-  right[4] = num_t(2);
+  for(int i = 4; i < A.rows(); i ++) {
+    for(int j = 0; j < A.cols(); j ++)
+      A(i, j) = num_t(i - 4 == j ? 1 : 0);
+    left[i] = (right[i] = num_t(1) / sqrt(sqrt(A.epsilon))) * sqrt(A.epsilon);
+  }
   const auto in(A.inner(left, right));
-  const auto errl(left - A * in);
-  const auto errr(A * in - right);
-        auto M(max(errl[0], errr[0]));
-  for(int i = 1; i < errl.size(); i ++)
-    M = max(M, max(errl[i], errr[i]));
-  std::cout << M << std::endl;
-  std::cout << A << left << right << in << std::endl;
+  std::cout << A * in << in << std::endl;
   return 0;
 }
 

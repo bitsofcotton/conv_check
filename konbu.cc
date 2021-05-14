@@ -33,15 +33,13 @@ int main(int argc, char* argv[])
   
   std::cout.precision(30);
   std::cerr.precision(30);
-  
-  b *= num_t(1000);
   struct rusage start, end;
   getrusage(RUSAGE_SELF, &start);
-  const auto error(A * A.inner(b * num_t(0), b) - b);
+  const auto err(A * A.inner(b * num_t(0), b) - b);
   getrusage(RUSAGE_SELF, &end);
-        auto M(error[0]);
-  for(int i = 1; i < error.size(); i ++)
-    M = max(M, error[i]);
+        auto M(err[0]);
+  for(int i = 1; i < err.size(); i ++)
+    M = max(M, err[i]);
   std::cout << A << b << std::endl;
   std::cout << M << ", " << sqrt(b.dot(b)) << std::endl;
   std::cout << end.ru_utime.tv_sec - start.ru_utime.tv_sec << "[s] and ";
