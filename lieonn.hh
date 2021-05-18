@@ -2662,41 +2662,61 @@ template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::SVD() const {
       return res.fillP(residue);
     return res;
   }
-  for(int i = 0; i < this->rows(); i ++)
-    for(int j = 0; j < this->cols(); j ++)
-      assert(isfinite((*this)(i, j)));
   auto s((*this) * this->transpose());
-  for(int i = 0; i < s.rows(); i ++)
-    for(int j = 0; j < s.cols(); j ++)
-      assert(isfinite(s(i, j)));
   auto left(s);
   left.O();
   vector<int> fill;
   fill.reserve(s.rows());
-  for(int i = 0; i < s.rows(); i ++) {
-    // N.B. find <s q, q> == s(i, i).
-          auto ss(s);
+  for(int i = 0; i < s.rows() - 2; i ++) {
+    // N.B. find <s q, q> == ||S||_2.
+    auto ss(s.subMatrix(i, i, s.rows() - i, s.cols() - i));
+    T singular(ss(0, 0));
+    for(int j = i; j < ss.rows(); j ++)
+      singular += ss(j, j);
     for(int j = 0; j < ss.rows(); j ++)
-      ss(j, j) -= s(i, i);
-    const auto ssb(- ss.col(i));
-    ss.setCol(i, ss.col(i) * T(0));
-    left.row(i) = ss.solve(ssb);
+      ss(j, j) -= singular;
+    auto ssb(- ss.col(0));
+    ss.setCol(0, ss.col(0) * T(0));
+    ssb = ss.solve(ssb);
+    for(int j = 0; j < ssb.size(); j ++)
+      left(i, j + i) = ssb[j];
     const auto n2(left.row(i).dot(left.row(i)));
     if(n2 <= epsilon)
      fill.emplace_back(i);
-    else
+    else {
      left.row(i) /= sqrt(n2);
+     // O(mn), symmetric.
+     const auto orth0(s * left.row(i));
+     for(int j = 0; j < s.rows(); j ++)
+       s.row(j) -= orth0;
+     // both side.
+     const auto orth1(s * left.row(i));
+     for(int j = 0; j < s.cols(); j ++)
+       s.setCol(j, s.col(j) - orth1);
+    }
   }
+  // left right bottom 2x2 solve:
+  const auto theta(atan2(s(s.rows() - 1, s.cols() - 1), s(s.rows() - 1, s.cols() - 1) - s(s.rows() - 1, s.cols() - 2)));
+  left(left.rows() - 2, left.cols() - 2) =
+    left(left.rows() - 1, left.cols() - 1) = cos(theta);
+  left(left.rows() - 2, left.cols() - 1) =
+    - (left(left.rows() - 1, left.cols() - 2) = sin(theta));
   return left.fillP(fill);
 }
 
-// N.B. for full rank.
 template <typename T> inline pair<pair<SimpleMatrix<T>, SimpleMatrix<T> >, SimpleMatrix<T> > SimpleMatrix<T>::SVD(const SimpleMatrix<T>& src) const {
   // refered from : https://en.wikipedia.org/wiki/Generalized_singular_value_decomposition .
   assert(this->cols() == src.cols());
   SimpleMatrix<T> C(this->rows() + src.rows(), this->cols());
+#if defined(_OPENMP)
+#pragma omp parallel
+#pragma omp for schedule(static, 1)
+#endif
   for(int i = 0; i < this->rows(); i ++)
     C.row(i) = this->row(i);
+#if defined(_OPENMP)
+#pragma omp for schedule(static, 1)
+#endif
   for(int i = 0; i < src.rows(); i ++)
     C.row(i + this->rows()) = src.row(i);
   const auto P(C.SVD());
@@ -2715,8 +2735,14 @@ template <typename T> inline pair<pair<SimpleMatrix<T>, SimpleMatrix<T> >, Simpl
   const auto D(P * C * Qt.transpose());
   SimpleMatrix<T> P1(this->rows(), d.size());
   SimpleMatrix<T> P2(src.rows(), d.size());
+#if defined(_OPENMP)
+#pragma omp for schedule(static, 1)
+#endif
   for(int i = 0; i < P1.rows(); i ++)
     P1.row(i) = P.col(i);
+#if defined(_OPENMP)
+#pragma omp for schedule(static, 1)
+#endif
   for(int i = 0; i < P2.rows(); i ++)
     P2.row(i) = P.col(i + P1.rows());
   auto U1(P1.SVD());
@@ -2747,6 +2773,9 @@ template <typename T> inline pair<pair<SimpleMatrix<T>, SimpleMatrix<T> >, Simpl
 template <typename T> template <typename U> inline SimpleMatrix<U> SimpleMatrix<T>::real() const {
   assert(0 < erows && 0 < ecols);
   SimpleMatrix<U> res(erows, ecols);
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static, 1)
+#endif
   for(int i = 0; i < erows; i ++)
     for(int j = 0; j < ecols; j ++)
       res(i, j) = U(entity[i][j].real());
@@ -2756,6 +2785,9 @@ template <typename T> template <typename U> inline SimpleMatrix<U> SimpleMatrix<
 template <typename T> template <typename U> inline SimpleMatrix<U> SimpleMatrix<T>::imag() const {
   assert(0 < erows && 0 < ecols);
   SimpleMatrix<U> res(erows, ecols);
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static, 1)
+#endif
   for(int i = 0; i < erows; i ++)
     for(int j = 0; j < ecols; j ++)
       res(i, j) = U(entity[i][j].imag());
@@ -2765,6 +2797,9 @@ template <typename T> template <typename U> inline SimpleMatrix<U> SimpleMatrix<
 template <typename T> template <typename U> inline SimpleMatrix<U> SimpleMatrix<T>::cast() const {
   assert(0 < erows && 0 < ecols);
   SimpleMatrix<U> res(erows, ecols);
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static, 1)
+#endif
   for(int i = 0; i < erows; i ++)
     for(int j = 0; j < ecols; j ++)
       res(i, j) = U(entity[i][j]);
@@ -2799,7 +2834,6 @@ template <typename T> inline void SimpleMatrix<T>::resize(const int& rows, const
   return;
 }
 
-// XXX: if there exists |t| == 0 trivial result, this rturns bugly value.
 template <typename T> inline SimpleVector<T> SimpleMatrix<T>::innerFix(const SimpleMatrix<T>& A, vector<pair<T, int> >& fidx) {
   // N.B. we now have |[A -bb] [x t]| <= 1 condition.
   // N.B. there's no difference |[A - bb] [x t]|^2 <= 1 condition in this.
@@ -2807,6 +2841,9 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::innerFix(const Sim
   const auto R((*this) * A);
   SimpleVector<T> one(this->cols());
   one.I(T(1));
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static, 1)
+#endif
   for(int i = 0; i < fidx.size(); i ++)
     one[fidx[i].second] = T(0);
   // we now have: Q [R [x t] ] <= {0, 1}^m cond.
@@ -2972,7 +3009,6 @@ template <typename T> std::istream& operator >> (std::istream& is, SimpleMatrix<
 }
 
 
-// some non class functions:
 template <typename T> const SimpleMatrix<complex<T> >& dft(const int& size0) {
   const auto size(abs(size0));
   if(! size) {
@@ -3055,8 +3091,7 @@ template <typename T> inline SimpleVector<T> taylor(const int& size, const T& st
   const auto step0(step00 == size - 1 || abs(residue0) <= T(1) / T(2) ? step00 : step00 + 1);
   const auto residue(step - T(step0));
   SimpleVector<T> res(size);
-  for(int i = 0; i < res.size(); i ++)
-    res[i] = T(i == step0 ? 1 : 0);
+  res.ek(step0);
   if(residue == T(0)) return res;
   const auto& D(diff<T>(size));
         auto  dt(D.col(step0) * residue);
@@ -3081,16 +3116,11 @@ template <typename T> SimpleVector<T> linearInvariant(const vector<SimpleVector<
   assert(in[0].size() <= in.size());
   SimpleVector<T> fvec(A.cols());
   SimpleVector<T> one(A.rows());
+  fvec.O();
+  one.I();
 #if defined(_OPENMP)
-#pragma omp for schedule(static, 1)
+#pragma omp parallel for schedule(static, 1)
 #endif
-  for(int i = 0; i < fvec.size(); i ++)
-    fvec[i] = T(0);
-#if defined(_OPENMP)
-#pragma omp for schedule(static, 1)
-#endif
-  for(int i = 0; i < A.rows(); i ++)
-    one[i] = T(1);
   for(int i = 0; i < in.size(); i ++) {
     assert(in[i].size() == in[0].size());
     for(int j = 0; j < in[0].size(); j ++)
@@ -3104,14 +3134,23 @@ template <typename T> SimpleVector<T> linearInvariant(const vector<SimpleVector<
 // N.B. please refer bitsofcotton/randtools.
 template <typename T> SimpleVector<T> makeProgramInvariant(const SimpleVector<T>& in, const T& index = - T(1)) {
   SimpleVector<T> res(in.size() + (T(0) <= index ? 2 : 1));
+#if defined(_OPENMP)
+#pragma omp simd
+#endif
   for(int i = 0; i < in.size(); i ++) {
     assert(- T(1) <= in[i] && in[i] <= T(1) && isfinite(in[i]));
-    res[i] = tan((in[i] + T(1)) / T(4) * atan2(T(1), T(1)));
+    res[i] = tan((in[i] + T(1)) / T(4) * atan(T(1)));
   }
   res[in.size()] = T(1);
   if(T(0) <= index)
-    res[in.size() + 1] = tan(index * atan2(T(1), T(1)));
+    res[in.size() + 1] = tan(index * atan(T(1)));
   return res;
+}
+
+template <typename T> T revertProgramInvariant(const T& in, const bool& index = false) {
+  if(index)
+    return atan(in) / atan(T(1));
+  return atan(in) / atan(T(1)) * T(4) - T(1);
 }
 
 
@@ -3147,15 +3186,11 @@ private:
 };
 
 template <typename T> inline SimpleSparseVector<T>::SimpleSparseVector() {
-  // already initialized by compiler, initializer doesn't need this.
-//  entity = map<int, T>();
   return;
 }
 
 template <typename T> inline SimpleSparseVector<T>::SimpleSparseVector(const int& sute) {
   assert(sute == 0);
-  // already initialized by compiler, initializer doesn't need this.
-//  entity = map<int, T>();
   return;
 }
 
