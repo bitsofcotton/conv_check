@@ -18,16 +18,15 @@ typedef myfloat num_t;
 #include <cmath>
 
 int main(int argc, char* argv[]) {
-  SimpleMatrix<num_t> A(7, 5);
+  SimpleMatrix<num_t> A(6, 4);
   SimpleVector<num_t> left(A.rows());
   SimpleVector<num_t> right(A.rows());
   for(int j = 0; j < 4; j ++) {
-    SimpleVector<num_t> work(4);
+    SimpleVector<num_t> work(3);
     work[0]  = num_t(j & 1);
     work[1]  = num_t((j >> 1) & 1);
-    work[2]  = num_t(((j & 1) && ((j >> 1) & 1)) ? 0 : 1);
-    work[3]  = (work[0] + work[1] + work[2]) / num_t(2) / num_t(3);
-    A.row(j) = makeProgramInvariant<num_t>(work);
+    work[2]  = num_t(((j & 1) ^ ((j >> 1) & 1)) ? 0 : 1);
+    A.row(j) = makeProgramInvariant<num_t>(work).first;
     assert(A.cols() == A.row(j).size());
     left[j]  = - (right[j] = sqrt(A.epsilon));
   }
@@ -36,8 +35,9 @@ int main(int argc, char* argv[]) {
       A(i, j) = num_t(i - 4 == j ? 1 : 0);
     left[i] = (right[i] = num_t(1) / sqrt(sqrt(A.epsilon))) * sqrt(A.epsilon);
   }
-  const auto in(A.inner(left, right));
-  std::cout << A * in << in << std::endl;
+  auto in(A.inner(left, right));
+  in /= sqrt(in.dot(in));
+  std::cout << A * in << std::endl;
   return 0;
 }
 
