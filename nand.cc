@@ -18,14 +18,15 @@ typedef myfloat num_t;
 #include <cmath>
 
 int main(int argc, char* argv[]) {
-  SimpleMatrix<num_t> A(6, 4);
+  SimpleMatrix<num_t> A(9, 5);
   SimpleVector<num_t> left(A.rows());
   SimpleVector<num_t> right(A.rows());
   for(int j = 0; j < 4; j ++) {
-    SimpleVector<num_t> work(3);
-    work[0]  = num_t(j & 1);
-    work[1]  = num_t((j >> 1) & 1);
-    work[2]  = num_t(((j & 1) ^ ((j >> 1) & 1)) ? 0 : 1);
+    SimpleVector<num_t> work(4);
+    work[0]  = num_t(j & 1 ? 1 : 2) / num_t(2);
+    work[1]  = num_t((j >> 1) & 1 ? 1 : 2) / num_t(2);
+    work[2]  = num_t((j >> 2) & 1 ? 1 : 2) / num_t(2);
+    work[3]  = num_t(!((j & 1) && ((j >> 1) & 1)) && ((j >> 2) & 1) ? 2 : 1) / num_t(2);
     A.row(j) = makeProgramInvariant<num_t>(work).first;
     assert(A.cols() == A.row(j).size());
     left[j]  = - (right[j] = sqrt(A.epsilon));
@@ -33,10 +34,10 @@ int main(int argc, char* argv[]) {
   for(int i = 4; i < A.rows(); i ++) {
     for(int j = 0; j < A.cols(); j ++)
       A(i, j) = num_t(i - 4 == j ? 1 : 0);
-    left[i] = (right[i] = num_t(1) / sqrt(sqrt(A.epsilon))) * sqrt(A.epsilon);
+    left[i]  = sqrt(sqrt(A.epsilon));
+    right[i] = num_t(1) / sqrt(sqrt(A.epsilon));
   }
-  auto in(A.inner(left, right));
-  in /= sqrt(in.dot(in));
+  const auto in(A.inner(left, right));
   std::cout << A * in << std::endl;
   return 0;
 }
