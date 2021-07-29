@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
     left[j]  = - (right[j] = sqrt(A.epsilon));
   }
   for(int j = 0; j < A.cols(); j ++)
-    A(8, j) = num_t(4 == j ? 1 : 0);
+    A(8, j) = num_t(3 == j ? 1 : 0);
   left[8]  = sqrt(sqrt(A.epsilon));
   right[8] = num_t(1) / sqrt(sqrt(A.epsilon));
   const auto in(A.inner(left, right));
