@@ -15,11 +15,11 @@ b_l&lt;=Ax&lt;=b_u
 
 |A'x+b''|&lt;=1
 
-|\[-b''',P\]\[t,x'\]|&lt;=1.
+|\[-b''',P\]\[t,x'\]|&lt;=1, t == 1.
 
 to minimize: |&lt;p\_k,x&gt;|, we choose orthogonality condition on (P P^t 1)'s minimum to fix.
-if P P^t 1 == 1, this causes fixed inequalities to be the minimum on the meaning to them.
-otherwise, it minimizes |&lt;p\_k,x&gt;+b\_k'| &lt;=1 &lt;=&gt; |&lt;p\_k,x&gt;|&lt;=1\* t'.
+if ||P P^t 1|| == 0, this causes fixed inequalities to be the minimum on the meaning to them.
+otherwise, it minimizes |&lt;p\_k,x&gt;+b\_k'| &lt;=1, if we fix one of the constraints, it's |&lt;p'\_k,x&gt;+b\_k''| &lt;=0 condition, and if we fix t itself, b\_k'' will be vanished.
 
 # Usage
     // if you need, please scope with namespace block, but include guard may harms.
