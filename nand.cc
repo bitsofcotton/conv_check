@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
   for(int j = 0; j < A.cols(); j ++)
     A(8, j) = num_t(3 == j ? 1 : 0);
   r[8] = num_t(1);
-  right[8] = pow(num_t(4), num_t(abs(rng)));
+  right[8] = pow(num_t(4), num_t(abs(4 * rng)));
   left[8]  = num_t(1) / right[8];
   num_t aa(1);
   for(int i = 0; i < A.rows(); i ++)
