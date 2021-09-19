@@ -2250,7 +2250,7 @@ public:
   inline       SimpleMatrix<T>  QR() const;
   inline       SimpleMatrix<T>  SVD() const;
   inline       pair<pair<SimpleMatrix<T>, SimpleMatrix<T> >, SimpleMatrix<T> > SVD(const SimpleMatrix<T>& src) const;
-  inline       SimpleVector<T>  zeroFix(const SimpleMatrix<T>& A, vector<pair<T, int> >& fidx);
+  inline       SimpleVector<T>  zeroFix(const SimpleMatrix<T>& A, vector<pair<T, int> > fidx);
   inline       SimpleVector<T>  inner(const SimpleVector<T>& bl, const SimpleVector<T>& bu) const;
   template <typename U> inline SimpleMatrix<U> real() const;
   template <typename U> inline SimpleMatrix<U> imag() const;
@@ -2863,7 +2863,7 @@ template <typename T> inline void SimpleMatrix<T>::resize(const int& rows, const
   return;
 }
 
-template <typename T> inline SimpleVector<T> SimpleMatrix<T>::zeroFix(const SimpleMatrix<T>& A, vector<pair<T, int> >& fidx) {
+template <typename T> inline SimpleVector<T> SimpleMatrix<T>::zeroFix(const SimpleMatrix<T>& A, vector<pair<T, int> > fidx) {
   // N.B. we now have |[A -bb] [x t]| <= 1 condition.
   // N.B. there's no difference |[A - bb] [x t]|^2 <= 1 condition in this.
   //      but not with mixed condition.
@@ -2873,8 +2873,10 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::zeroFix(const Simp
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
-  for(int i = 0; i < fidx.size(); i ++)
-    one[fidx[i].second] = T(int(0));
+  for(int i = 0; i < fidx.size(); i ++) {
+    one[fidx[i].second] = - fidx[i].first;
+    fidx[i].first = - T(int(1));
+  }
   // we now have: Q [R [x t] ] <= {0, 1}^m cond.
   const auto on(projectionPt(one));
   fidx.reserve(fidx.size() + this->cols());
@@ -2915,7 +2917,7 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::inner(const Simple
     if(upper[i] == T(int(0))) {
       const auto n2(A.row(i).dot(A.row(i)));
       if(n2 != T(int(0))) {
-        fidx.emplace_back(make_pair(- T(int(1)), i));
+        fidx.emplace_back(make_pair(- T(int(bb[i] == T(0) ? 0 : 1)), i));
         A.row(i) /= sqrt(n2);
       } else
         A.row(i) *= n2;
@@ -2923,21 +2925,16 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::inner(const Simple
       A.row(i) /= upper[i];
       bb[i]    /= upper[i];
     }
+    // N.B. we now have |[A -bb] [x t]| <= 1 condition.
+    // N.B. there's no difference |[A -bb] [x t]|^2 <= 1 condition in this.
+    //      but not with mixed condition.
+    // N.B. with fixing t := 1, we returns: [[A -bb-1], [-A bb-1]] [x t'] <= 0
+    //      so we scale bb_k' := 1 / 2, the condition is:
+    //      |A' x - 1 / 2| <= 1, in zeroFix, so to minimize |A' x| makes sense.
     if(bb[i] != T(0))
-      A.row(i) /= bb[i];
+      A.row(i) /= bb[i] / T(2);
     assert(isfinite(A.row(i).dot(A.row(i))));
   }
-  // N.B. we now have |[A -bb] [x t]| <= 1 condition.
-  // N.B. there's no difference |[A -bb] [x t]|^2 <= 1 condition in this.
-  //      but not with mixed condition.
-  // N.B. with fixing t := 1, we returns: [[A -bb-1], [-A bb-1]] [x t'] <= 0
-  //      so we scale bb_k' := 1, the condition is:
-  //      |A' x - 1| <= 1, in zeroFix, we treat -1 vector as a special one.
-  //      so we solve |A'x| <= 1 with opt, then, x_ok := some t * x works fine
-  //      if A' x is orthogonal to -1 (optimal condition, otherwise,
-  //      we need to add Q^t(-1) to the x.)
-  // N.B. A' and A is only has a difference each row's ratio.
-  //      But the difference is critial to the zeroFix function.
   return A.QR().zeroFix(A, fidx);
 }
 

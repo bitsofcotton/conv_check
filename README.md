@@ -17,10 +17,13 @@ b_l&lt;=Ax&lt;=b_u
 
 |\[-b''',P\]\[t,x'\]|&lt;=1, t == 1.
 
-scaling b*_k := 1,
-|P x' - 1|&lt;=1
+scaling b*_k := 1 / 2,
+|P' x' - 1 / 2|&lt;=1
 
-To minimize: |&lt;p\_k,x&gt; - 1|, we choose orthogonality condition on (P P^t 1)'s minimum to fix, this also includes also -1 intercept condition with some ratio.
+so minimizing |P' x'| makes sense.
+
+To minimize |P' x'|, we take minimum of |P' P'^t 1| vector.
+This causes the problem with minimum ||P' x'||_2 condition, minimize |P' x'|.
 
 # Usage
     // if you need, please scope with namespace block, but include guard may harms.
