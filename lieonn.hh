@@ -2907,24 +2907,23 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::inner(const Simple
   assert(this->rows() == bl.size() && this->rows() == bu.size() &&
          0 < this->cols() && 0 < this->rows() && this->cols() < this->rows());
   // |(2 / bu) A x - 1 - bl / bu| <= |1 - bl / bu|
-  // <=> with (-A, -bu, -bl), |bl| <= |bu|, |(2 / bu) A x - 1| <= 0.
+  // <=> with (-A, -bu, -bl), |bl| <= |bu|, |(2 / bu) A x - 2| <= 2(1 - bl / bu)
   auto bU(bu);
   auto bL(bl);
   SimpleMatrix<T> A(*this);
   vector<pair<T, int> > fidx;
   for(int i = 0; i < bU.size(); i ++) {
-    if(abs(bU[i]) < abs(bL[i])) {
-      swap(bU[i], bL[i]);
-      bU[i] = - bU[i];
-      bL[i] = - bL[i];
-      A.row(i) = - A.row(i);
-    } else if(bU[i] == bL[i])
-      fidx.emplace_back(make_pair(- T(int(bU[i] == T(0) ? 0 : 1)), i));
-    A.row(i) /= bU[i];
-    A.row(i) /= (T(4) - T(2) * bL[i] / bU[i]);
+    if(abs(bu[i]) < abs(bl[i])) {
+      bU[i] = - bl[i];
+      bL[i] = - bu[i];
+      A.row(i) = - this->row(i);
+    } else if(bu[i] == bl[i])
+      fidx.emplace_back(make_pair(- T(int(bu[i] == T(0) ? 0 : 1)), i));
+    assert(bL[i] <= bU[i] && abs(bL[i]) <= abs(bU[i]));
+    A.row(i) /= T(2) * bU[i] - bL[i];
     assert(isfinite(A.row(i).dot(A.row(i))));
   }
-  // N.B. in zeroFix, we get linear Invariant s.t. |Ax - 2| <= 0 possible enough.
+  // N.B. in zeroFix, we get linear Invariant s.t. |Ax| <= 1 possible enough.
   return A.QR().zeroFix(A, fidx);
 }
 

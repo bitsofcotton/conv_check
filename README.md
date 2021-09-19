@@ -21,13 +21,19 @@ else if left hand side &gt; 0 case, it's also |A'x - 2| &lt; 0 but in reasonable
 otherwise: - b' &lt; left hand &lt; 0 case, it's equivalent to
 some external intercept: |A'x - 2| &lt; 2 b'.
 
-Twice same method, A'x - 2 &lt; 2b' &lt;=&gt; A'x &lt; 2b' + 2 &lt;=&gt; |A'x| &lt; 2b' + 2, sign range is from function variable range.
+Twice same method, A'x - 2 &lt; 2b' &lt;=&gt; A'x &lt; 2b' + 2 &lt;=&gt; |A'x| &lt; 2b' + 2, sign range is from feasible region.
 
 So we avoid const. multiply, exchange |b_l| &lt; |b_u| condition, divide by b_u, then, divide by (2b' + 2 == 4 - 2 \* (b_l / b_u)) each the original matrix's linear invariant has to make a sense.
 
 We ignore sign on x, so they're equivalent to |A'x|==2 we also ignore ratio on x, it's the problem linearInvariant A'.
 
-To calculate linear invariant, ||P' x''||_2 / ||x''||_2 -&gt; maximum condition in |P' x''|&lt;=1 epsilon, minimize sup_k |&lt;p', x''&gt;|\_k. But optimal condition fixes some on the index |P' x'|&lt;=1 each (optimal is on the some of a vertex != 0. i.e. some of line segment.), causes ||P'_partial x''||_2 / ||x''||_2 -&gt; maximum, so the first condition, find minimum of ||P'_partial x''||_2 / ||x''||_2 -&gt; maximim condition, This can be done by sort each |&lt;p',x''&gt;|, then fix them in ascendant order because fix one of the index causes orthogonalize original matrix and it's linear dependant in 2nd-norm condition. This method also finds minimum combination on |&lt;p'x,x''&gt;|.
+To calculate linear invariant, ||P' x''||_2 / ||x''||_2 -&gt; maximum condition in |P' x''|&lt;=1 epsilon, minimize sup_k |&lt;p', x''&gt;|\_k.
+But optimal condition, they fixes some on the index |P' x'|&lt;=1 each (optimal is on the some of a vertex != 0. i.e. some of line segment.), causes ||P'_partial x''||_2 / ||x''||_2 -&gt; maximum.
+So the linear invariant condition is equivalent to the first condition, and find minimum of ||P'_partial x''||_2 / ||x''||_2 -&gt; maximim condition.
+This can be done by sort each |&lt;p',x''&gt;|, then fix them in ascendant order because fix one of the index causes orthogonalize original matrix and it's linear dependant in 2nd-norm condition.
+
+This method also finds minimum combination on |&lt;p'x,x''&gt;|_1.
+(||Px||_2^2-||Px||_1^2 == ||x||_2^2-(Sum\<p\_k,x\>)^2==||x||_2^2-Sum\<p_k,x\>\<p_l,x\>==||x'||_2^2-Sum x'\_kx'\_l) == ||x'||_2^2-||x'||_1^2, d/dt (at(x)\*bt(x))^t==(at(x)\*bt(x))^(t-1)(at'(x)\*bt(x) + at(x)\*bt'(x)), t==4 and t==2 case, ratio is also t==2 case, limit condition).
 
 # Usage
     // if you need, please scope with namespace block, but include guard may harms.
