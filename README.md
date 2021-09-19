@@ -17,17 +17,29 @@ b_l&lt;=Ax&lt;=b_u
 
 |\[-b''',P\]\[t,x'\]|&lt;=1, t == 1.
 
-scaling b*_k := 1 / 2,
-|P' x' - 1 / 2|&lt;=1
+\[\[-b'''-1,P\],\[b'''-1,-P\]\]\[t',x'\]&lt;=0
 
-so minimizing |P' x'| makes sense.
+scaling b''' := - 1 / 2,
 
-To minimize |P' x'|, we take minimum of |P' P'^t 1| vector.
-This causes the problem with minimum ||P' x'||_2 condition, minimize |P' x'|.
+\[\[-1/2,P'\],\[1/2,-P'\]\]\[t',x'\]\]&lt;=0
+
+\[\[-1/2+1,P'\],\[1/2+1,-P'\]\]\[t',x'\]\]&lt;=1 t'
+
+||P'x'-t'1/2\]|&lt;1t'
+
+|P' x'' - 1 / 2|&lt;=1
+
+so minimizing |P' x''| makes sense.
+
+To minimize |P' x''|, we take the minimum index of |P' P'^t 1| vector.
+
+This causes the problem with minimum ||P' x''||_2 condition, minimize |P' x''|.
+
+This is equivalent to y:=P' x'', ||y||_2 : minimum condition, minimize &lt;|y|,1&gt; . But we can ignore ||y||_2 condition because r in R, ry exists, it's ok whole.
 
 # Usage
     // if you need, please scope with namespace block, but include guard may harms.
-    #include "simplelin.hh"
+    #include "lieonn.hh"
     ...
     SimpleMatrix<num_t> A(/* some rows */, /* some cols */);
     SimpleVector<num_t> b(A.rows());
