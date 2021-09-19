@@ -14,16 +14,16 @@ b_l&lt;=Ax&lt;=b_u
 choose b' := 1 - (b_l / b_u)_each,
 (we can choose |b_l| &lt; |b_u| if same sign, otherwise right hand side &gt;0)
 
-if left hand &gt; b' or left hand &lt; - b', |A'x - 2| &lt; 0.
+if left hand &gt; b' or left hand &lt; - b', |A'x - 2| &lt; 0 but we don't meet this condition.
 
-else if left hand side &gt; 0 case, it's also |A'x - 2| &lt; 0.
+else if left hand side &gt; 0 case, it's also |A'x - 2| &lt; 0 but in reasonable condition, |A'x - 2| &lt; 2b' in opposite sign condition.
 
 otherwise: - b' &lt; left hand &lt; 0 case, it's equivalent to
 some external intercept: |A'x - 2| &lt; 2 b'.
-But opposite sign condition -b_u&lt;-Ax&lt;-b_l,
-they concludes |-A'x - 2| &lt; 0
 
-So we avoid const. multiply, exchange |b_l| &lt; |b_u| condition, divide by b_u each the original matrix's linear invariant has to make a sense.
+Twice same method, A'x - 2 &lt; 2b' &lt;=&gt; A'x &lt; 2b' + 2 &lt;=&gt; |A'x| &lt; 2b' + 2, sign range is from function variable range.
+
+So we avoid const. multiply, exchange |b_l| &lt; |b_u| condition, divide by b_u, then, divide by (2b' + 2 == 4 - 2 \* (b_l / b_u)) each the original matrix's linear invariant has to make a sense.
 
 We ignore sign on x, so they're equivalent to |A'x|==2 we also ignore ratio on x, it's the problem linearInvariant A'.
 

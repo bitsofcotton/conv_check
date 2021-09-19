@@ -2917,10 +2917,11 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::inner(const Simple
       swap(bU[i], bL[i]);
       bU[i] = - bU[i];
       bL[i] = - bL[i];
-      A.row(i) *= - T(int(1));
+      A.row(i) = - A.row(i);
     } else if(bU[i] == bL[i])
       fidx.emplace_back(make_pair(- T(int(bU[i] == T(0) ? 0 : 1)), i));
     A.row(i) /= bU[i];
+    A.row(i) /= (T(4) - T(2) * bL[i] / bU[i]);
     assert(isfinite(A.row(i).dot(A.row(i))));
   }
   // N.B. in zeroFix, we get linear Invariant s.t. |Ax - 2| <= 0 possible enough.
