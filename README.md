@@ -15,25 +15,10 @@ b_l&lt;=Ax&lt;=b_u
 
 |A'x+b''|&lt;=1
 
-|\[-b''',P\]\[t,x'\]|&lt;=1, t == 1.
+so pass linear invariant on 0 &lt;= |A'' x' + 1| &lt;= |b'''| causes
+calculation ok.
 
-\[\[-b'''-1,P\],\[b'''-1,-P\]\]\[t',x'\]&lt;=0
-
-scaling b''' := - 2,
-
-\[\[1,P'\],\[-3,-P'\]\]\[t',x'\]\]&lt;=0
-
-\[\[-2+1,P'\],\[-2-1,-P'\]\]\[t',x'\]\]&lt;=1 t'
-
-||P'x'-t'1\]|&lt;2t'
-
-|P' x'' - 1|&lt;=2
-
-so minimizing |P' x''| makes sense.
-
-To minimize |P' x''|, we take the minimum index of |P' P'^t 1| vector.
-
-This is equivalent to ||P' x''||_2 / ||x''||_2 -&gt; maximum condition in |P' x''|&lt;=1 epsilon, minimize &lt;|P' x''|,1&gt; . But optimal condition fixes some on the index |P' x'|&lt;=1 each (optimal is on the some of a vertex != 0. i.e. some of line segment.), causes ||P'_partial x''||_2 / ||x''||_2 -&gt; maximum, so the first condition, find minimum of ||P'_partial x''||_2 / ||x''||_2 -&gt; maximim condition, This can be done by sort each |&lt;p',x''&gt;|, then fix them in ascendant order because fix one of the index causes orthogonalize original matrix and it's linear dependant in 2nd-norm condition. This method also finds minimum combination on |&lt;p'x,x''&gt;|.
+To calculate linear invariant, ||P' x''||_2 / ||x''||_2 -&gt; maximum condition in |P' x''|&lt;=1 epsilon, minimize sup_k |&lt;p', x''&gt;|\_k. But optimal condition fixes some on the index |P' x'|&lt;=1 each (optimal is on the some of a vertex != 0. i.e. some of line segment.), causes ||P'_partial x''||_2 / ||x''||_2 -&gt; maximum, so the first condition, find minimum of ||P'_partial x''||_2 / ||x''||_2 -&gt; maximim condition, This can be done by sort each |&lt;p',x''&gt;|, then fix them in ascendant order because fix one of the index causes orthogonalize original matrix and it's linear dependant in 2nd-norm condition. This method also finds minimum combination on |&lt;p'x,x''&gt;|.
 
 # Usage
     // if you need, please scope with namespace block, but include guard may harms.

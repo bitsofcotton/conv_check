@@ -2929,17 +2929,15 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::inner(const Simple
   }
   // N.B. we now have |[A -bb] [x t]| <= 1 condition.
   // N.B. there's no difference |[A -bb] [x t]|^2 <= 1 condition in this.
-  //      but not with mixed condition.
-  // N.B. with fixing t := 1, we returns: [[A -bb-1], [-A bb-1]] [x t'] <= 0
-  //      so we scale bb_k' := 1 / 2, the condition is:
-  //      |A' x - 1 / 2| <= 1, in zeroFix, so to minimize |A' x| makes sense.
   auto P(A.QR());
   auto R(P * A);
   P = P.transpose();
-  // It's no difference bb coefficients.
   for(int i = 0; i < P.rows(); i ++)
     if(bb[i] != T(0))
       P.row(i) /= bb[i];
+  // N.B. in zeroFix, we get linear Invariant s.t. |Ax - 1| <= 0
+  //      possible enough.
+  //      So pass |A( + (-bb) / (-bb)| <= 0.
   return R.solve(P.QR().zeroFix(A, fidx));
 }
 
