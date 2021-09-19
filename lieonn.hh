@@ -2937,7 +2937,8 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::inner(const Simple
   auto R(P * A);
   P = P.transpose();
   for(int i = 0; i < P.rows(); i ++)
-    P.row(i) /= bb[i] / T(2);
+    if(bb[i] != T(0))
+      P.row(i) /= bb[i] / T(2);
   return R.solve(P.QR().zeroFix(A, fidx));
 }
 
