@@ -33,9 +33,7 @@ so minimizing |P' x''| makes sense.
 
 To minimize |P' x''|, we take the minimum index of |P' P'^t 1| vector.
 
-This causes the problem with minimum ||P' x''||_2 condition, minimize |P' x''|.
-
-This is equivalent to y:=P' x'', ||y||_2 : minimum condition, minimize &lt;|y|,1&gt; . But we can ignore ||y||_2 condition because r in R, ry exists, it's ok whole.
+This is equivalent to ||P' x''||_2 / ||x''||_2 -&gt; maximum condition in |P' x''|&lt;=1 epsilon, minimize &lt;|P' x''|,1&gt; . But optimal condition fixes some on the index |P' x'|&lt;=1 each (optimal is on the some of a vertex != 0. i.e. some of line segment.), causes ||P'_partial x''||_2 / ||x''||_2 -&gt; maximum, so the first condition causes ||P' x''||_2 / ||x''||_2 -&gt; maximum condition in |P' x''|&lt;=1 epsilon, find minimum of ||P'_partial x''||_2 / ||x''||_2 -&gt; maximim condition, This can be done by sort each |&lt;p',x''&gt;|, then fix them in ascendant order because fix some index causes to decrease another indices in cos meaning.
 
 # Usage
     // if you need, please scope with namespace block, but include guard may harms.
