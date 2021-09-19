@@ -2906,39 +2906,25 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::zeroFix(const Simp
 template <typename T> inline SimpleVector<T> SimpleMatrix<T>::inner(const SimpleVector<T>& bl, const SimpleVector<T>& bu) const {
   assert(this->rows() == bl.size() && this->rows() == bu.size() &&
          0 < this->cols() && 0 < this->rows() && this->cols() < this->rows());
-  // bu - bb == A, bl - bb == - A <=> bu - bl == 2 A. 
-        auto bb((bu + bl) / T(int(2)));
-  const auto upper(bu - bb);
+  // |(2 / bu) A x - 1 - bl / bu| <= |1 - bl / bu|
+  // <=> with (-A, -bu, -bl), |bl| <= |bu|, |(2 / bu) A x - 1| <= 0.
+  auto bU(bu);
+  auto bL(bl);
   SimpleMatrix<T> A(*this);
   vector<pair<T, int> > fidx;
-  fidx.reserve(this->rows());
-  for(int i = 0; i < this->rows(); i ++) {
-    assert(T(int(0)) <= upper[i]);
-    if(upper[i] == T(int(0))) {
-      const auto n2(A.row(i).dot(A.row(i)));
-      if(n2 != T(int(0))) {
-        fidx.emplace_back(make_pair(- T(int(bb[i] == T(0) ? 0 : 1)), i));
-        A.row(i) /= sqrt(n2);
-      } else
-        A.row(i) *= n2;
-    } else {
-      A.row(i) /= upper[i];
-      bb[i]    /= upper[i];
-    }
+  for(int i = 0; i < bU.size(); i ++) {
+    if(abs(bU[i]) < abs(bL[i])) {
+      swap(bU[i], bL[i]);
+      bU[i] = - bU[i];
+      bL[i] = - bL[i];
+      A.row(i) *= - T(int(1));
+    } else if(bU[i] == bL[i])
+      fidx.emplace_back(make_pair(- T(int(bU[i] == T(0) ? 0 : 1)), i));
+    A.row(i) /= bU[i];
     assert(isfinite(A.row(i).dot(A.row(i))));
   }
-  // N.B. we now have |[A -bb] [x t]| <= 1 condition.
-  // N.B. there's no difference |[A -bb] [x t]|^2 <= 1 condition in this.
-  auto P(A.QR());
-  auto R(P * A);
-  P = P.transpose();
-  for(int i = 0; i < P.rows(); i ++)
-    if(bb[i] != T(0))
-      P.row(i) /= bb[i];
-  // N.B. in zeroFix, we get linear Invariant s.t. |Ax - 1| <= 0
-  //      possible enough.
-  //      So pass |A( + (-bb) / (-bb)| <= 0.
-  return R.solve(P.QR().zeroFix(A, fidx));
+  // N.B. in zeroFix, we get linear Invariant s.t. |Ax - 2| <= 0 possible enough.
+  return A.QR().zeroFix(A, fidx);
 }
 
 template <typename T> std::ostream& operator << (std::ostream& os, const SimpleMatrix<T>& v) {

@@ -9,14 +9,23 @@ Japanese Patent Draft : JP2014089683 .
 # Proof
 b_l&lt;=Ax&lt;=b_u
 
--b&lt;=Ax+b'&lt;=b
+|(2 / b_u)_each A x - 1 - (b_l / b_u)_each| &lt;= |1 - (b_l / b_u)_each|.
 
-|Ax+b'|&lt;=b
+choose b' := 1 - (b_l / b_u)_each,
+(we can choose |b_l| &lt; |b_u| if same sign, otherwise right hand side &gt;0)
 
-|A'x+b''|&lt;=1
+if left hand &gt; b' or left hand &lt; - b', |A'x - 2| &lt; 0.
 
-so pass linear invariant on 0 &lt;= |A'' x' + 1| &lt;= |b'''| causes
-calculation ok.
+else if left hand side &gt; 0 case, it's also |A'x - 2| &lt; 0.
+
+otherwise: - b' &lt; left hand &lt; 0 case, it's equivalent to
+some external intercept: |A'x - 2| &lt; 2 b'.
+But opposite sign condition -b_u&lt;-Ax&lt;-b_l,
+they concludes |-A'x - 2| &lt; 0
+
+So we avoid const. multiply, exchange |b_l| &lt; |b_u| condition, divide by b_u each the original matrix's linear invariant has to make a sense.
+
+We ignore sign on x, so they're equivalent to |A'x|==2 we also ignore ratio on x, it's the problem linearInvariant A'.
 
 To calculate linear invariant, ||P' x''||_2 / ||x''||_2 -&gt; maximum condition in |P' x''|&lt;=1 epsilon, minimize sup_k |&lt;p', x''&gt;|\_k. But optimal condition fixes some on the index |P' x'|&lt;=1 each (optimal is on the some of a vertex != 0. i.e. some of line segment.), causes ||P'_partial x''||_2 / ||x''||_2 -&gt; maximum, so the first condition, find minimum of ||P'_partial x''||_2 / ||x''||_2 -&gt; maximim condition, This can be done by sort each |&lt;p',x''&gt;|, then fix them in ascendant order because fix one of the index causes orthogonalize original matrix and it's linear dependant in 2nd-norm condition. This method also finds minimum combination on |&lt;p'x,x''&gt;|.
 
