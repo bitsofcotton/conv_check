@@ -2250,7 +2250,7 @@ public:
   inline       SimpleMatrix<T>  QR() const;
   inline       SimpleMatrix<T>  SVD() const;
   inline       pair<pair<SimpleMatrix<T>, SimpleMatrix<T> >, SimpleMatrix<T> > SVD(const SimpleMatrix<T>& src) const;
-  inline       SimpleVector<T>  innerFix(const SimpleMatrix<T>& A, vector<pair<T, int> >& fidx);
+  inline       SimpleVector<T>  zeroFix(const SimpleMatrix<T>& A, vector<pair<T, int> >& fidx);
   inline       SimpleVector<T>  inner(const SimpleVector<T>& bl, const SimpleVector<T>& bu) const;
   template <typename U> inline SimpleMatrix<U> real() const;
   template <typename U> inline SimpleMatrix<U> imag() const;
@@ -2863,7 +2863,7 @@ template <typename T> inline void SimpleMatrix<T>::resize(const int& rows, const
   return;
 }
 
-template <typename T> inline SimpleVector<T> SimpleMatrix<T>::innerFix(const SimpleMatrix<T>& A, vector<pair<T, int> >& fidx) {
+template <typename T> inline SimpleVector<T> SimpleMatrix<T>::zeroFix(const SimpleMatrix<T>& A, vector<pair<T, int> >& fidx) {
   // N.B. we now have |[A -bb] [x t]| <= 1 condition.
   // N.B. there's no difference |[A - bb] [x t]|^2 <= 1 condition in this.
   //      but not with mixed condition.
@@ -2905,7 +2905,7 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::inner(const Simple
   assert(this->rows() == bl.size() && this->rows() == bu.size() &&
          0 < this->cols() && 0 < this->rows() && this->cols() < this->rows());
   // bu - bb == A, bl - bb == - A <=> bu - bl == 2 A. 
-  const auto bb((bu + bl) / T(int(2)));
+        auto bb((bu + bl) / T(int(2)));
   const auto upper(bu - bb);
   SimpleMatrix<T> A(*this);
   vector<pair<T, int> > fidx;
@@ -2919,15 +2919,26 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::inner(const Simple
         A.row(i) /= sqrt(n2);
       } else
         A.row(i) *= n2;
-    } else
+    } else {
       A.row(i) /= upper[i];
+      bb[i]    /= upper[i];
+    }
+    if(bb[i] != T(0))
+      A.row(i) /= bb[i];
     assert(isfinite(A.row(i).dot(A.row(i))));
   }
   // N.B. we now have |[A -bb] [x t]| <= 1 condition.
   // N.B. there's no difference |[A -bb] [x t]|^2 <= 1 condition in this.
   //      but not with mixed condition.
-  // N.B. we don't matter signs on [A -bb] [x t].
-  return A.QR().innerFix(A, fidx);
+  // N.B. with fixing t := 1, we returns: [[A -bb-1], [-A bb-1]] [x t'] <= 0
+  //      so we scale bb_k' := 1, the condition is:
+  //      |A' x - 1| <= 1, in zeroFix, we treat -1 vector as a special one.
+  //      so we solve |A'x| <= 1 with opt, then, x_ok := some t * x works fine
+  //      if A' x is orthogonal to -1 (optimal condition, otherwise,
+  //      we need to add Q^t(-1) to the x.)
+  // N.B. A' and A is only has a difference each row's ratio.
+  //      But the difference is critial to the zeroFix function.
+  return A.QR().zeroFix(A, fidx);
 }
 
 template <typename T> std::ostream& operator << (std::ostream& os, const SimpleMatrix<T>& v) {
@@ -3231,7 +3242,7 @@ template <typename T> static inline SimpleVector<T> taylor(const int& size, cons
 
 template <typename T> static inline SimpleVector<T> linearInvariant(const SimpleMatrix<T>& in) {
   vector<pair<T, int> > sute;
-  return in.QR().innerFix(in, sute);
+  return in.QR().zeroFix(in, sute);
 }
 
 // N.B. please refer bitsofcotton/randtools.

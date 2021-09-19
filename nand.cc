@@ -22,6 +22,8 @@ int main(int argc, char* argv[]) {
   SimpleVector<num_t> left(A.rows());
   SimpleVector<num_t> right(A.rows());
   SimpleVector<num_t> r(A.rows());
+  assert(1 < argc);
+  const auto rng(std::atoi(argv[1]));
   for(int j = 0; j < 8; j ++) {
     SimpleVector<num_t> work(4);
     work[0]  = num_t(j & 1 ? 1 : 2) / num_t(2);
@@ -32,15 +34,15 @@ int main(int argc, char* argv[]) {
     A.row(j) = buf.first;
     r[j]     = buf.second;
     assert(A.cols() == A.row(j).size());
-    left[j]  = - num_t(1) / num_t(20);
-    right[j] =   num_t(1) / num_t(20);
+    left[j]  = - pow(num_t(2), num_t(_FLOAT_BITS_) / num_t(rng * 2));
+    right[j] = - left[j];
   }
   for(int j = 0; j < A.cols(); j ++)
     A(8, j) = num_t(3 == j ? 1 : 0);
   r[8] = num_t(1);
   left[8]  = num_t(1);
-  right[8] = num_t(2000);
-  std::cout << A * A.inner(left, right) << std::endl;
+  right[8] = pow(right[7], num_t(rng));
+  std::cout << A * A.inner(left, right) << r << std::endl;
   return 0;
 }
 
