@@ -2925,17 +2925,20 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::inner(const Simple
       A.row(i) /= upper[i];
       bb[i]    /= upper[i];
     }
-    // N.B. we now have |[A -bb] [x t]| <= 1 condition.
-    // N.B. there's no difference |[A -bb] [x t]|^2 <= 1 condition in this.
-    //      but not with mixed condition.
-    // N.B. with fixing t := 1, we returns: [[A -bb-1], [-A bb-1]] [x t'] <= 0
-    //      so we scale bb_k' := 1 / 2, the condition is:
-    //      |A' x - 1 / 2| <= 1, in zeroFix, so to minimize |A' x| makes sense.
-    if(bb[i] != T(0))
-      A.row(i) /= bb[i] / T(2);
     assert(isfinite(A.row(i).dot(A.row(i))));
   }
-  return A.QR().zeroFix(A, fidx);
+  // N.B. we now have |[A -bb] [x t]| <= 1 condition.
+  // N.B. there's no difference |[A -bb] [x t]|^2 <= 1 condition in this.
+  //      but not with mixed condition.
+  // N.B. with fixing t := 1, we returns: [[A -bb-1], [-A bb-1]] [x t'] <= 0
+  //      so we scale bb_k' := 1 / 2, the condition is:
+  //      |A' x - 1 / 2| <= 1, in zeroFix, so to minimize |A' x| makes sense.
+  auto P(A.QR());
+  auto R(P * A);
+  P = P.transpose();
+  for(int i = 0; i < P.rows(); i ++)
+    P.row(i) /= bb[i] / T(2);
+  return R.solve(P.QR().zeroFix(A, fidx));
 }
 
 template <typename T> std::ostream& operator << (std::ostream& os, const SimpleMatrix<T>& v) {
