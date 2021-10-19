@@ -18,7 +18,7 @@ typedef myfloat num_t;
 #include <cmath>
 
 int main(int argc, char* argv[]) {
-  SimpleMatrix<num_t> A(8 + 1, 4 + 2);
+  SimpleMatrix<num_t> A(8 + 1, 4 + 1);
   SimpleVector<num_t> left(A.rows());
   SimpleVector<num_t> right(A.rows());
   SimpleVector<num_t> r(A.rows());
