@@ -2926,7 +2926,23 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::inner(const Simple
     assert(isfinite(A.row(i).dot(A.row(i))));
   }
   // N.B. in zeroFix, we get linear Invariant s.t. |Ax| <= 1 possible enough.
-  return A.QR().zeroFix(A, fidx);
+        auto res(A.QR().zeroFix(A, fidx));
+  const auto z(*this * res * T(int(8)));
+        T    t(int(1));
+  for(int i = 0; i < z.size(); i ++) {
+    if(bl[i] * z[i] < T(int(0))) {
+      if(bu[i] * z[i] < T(int(0))) // XXX: infeasible.
+        continue;
+      else if(z[i] != T(int(0)))
+        t = min(t, bu[i] / z[i]);
+    } else if(z[i] != T(int(0))) {
+      if(bu[i] * z[i] < T(int(0)))
+        t = min(t, bl[i] / z[i]);
+      else
+        t = min(t, min(bu[i] / z[i], bl[i] / z[i]));
+    }
+  }
+  return res *= t;
 }
 
 template <typename T> std::ostream& operator << (std::ostream& os, const SimpleMatrix<T>& v) {
