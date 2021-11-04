@@ -25,9 +25,9 @@ int main(int argc, char* argv[])
   N_INEQ = int(num_t(N_ELEM) + ceil(num_t(random()) / num_t(RAND_MAX) * num_t(20)));
 
   SimpleMatrix<num_t> A(N_INEQ, N_ELEM);
-  SimpleVector<num_t> b(N_INEQ);
+  SimpleVector<num_t> b(N_INEQ), mb(N_INEQ);
   for(int i = 0; i < N_INEQ; i ++)
-    b[i] = abs(ceil((num_t(1) / num_t(2) - num_t(random()) / num_t(RAND_MAX)) * num_t(M_VAL)) / num_t(MIN_VAL));
+    b[i] = (mb[i] = ceil((num_t(1) / num_t(2) - num_t(random()) / num_t(RAND_MAX)) * num_t(M_VAL)) / num_t(MIN_VAL)) + pow(num_t(2), num_t(9));
   for(int i = 0; i < N_ELEM; i ++)
     for(int j = 0; j < N_INEQ; j ++)
       A(j, i) = ceil((num_t(1) / num_t(2) - num_t(random()) / num_t(RAND_MAX)) * num_t(M_VAL)) / num_t(MIN_VAL);
@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
   std::cerr.precision(30);
   struct rusage start, end;
   getrusage(RUSAGE_SELF, &start);
-  const auto err(A * A.inner(b * num_t(0), b) - b);
+  const auto err(A * A.inner(mb, b) - b);
   getrusage(RUSAGE_SELF, &end);
         auto M(err[0]);
   for(int i = 1; i < err.size(); i ++)

@@ -16,9 +16,9 @@ int main(int argc, char* argv[]) {
         auto rsvd(svd * A);
   for(int i = 0; i < rsvd.rows(); i ++)
     rsvd.row(i) /= sqrt(rsvd.row(i).dot(rsvd.row(i)));
-  std::cout << svd * svd.transpose();
-  std::cout << svd.transpose() * svd;
+  std::cout <<  svd *  svd.transpose();
   std::cout << rsvd * rsvd.transpose();
+  std::cout <<  svd.transpose() * svd;
   std::cout << rsvd.transpose() * rsvd;
   return 0;
 }
