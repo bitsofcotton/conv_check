@@ -2248,7 +2248,7 @@ public:
   inline       SimpleVector<T>  projectionPt(const SimpleVector<T>& other) const;
   inline       SimpleMatrix<T>& fillP(const vector<int>& idx);
   inline       SimpleMatrix<T>  QR() const;
-  inline       SimpleMatrix<T>  SVD(const int& cut = 200) const;
+  inline       SimpleMatrix<T>  SVD(const int& cut = 20000) const;
   inline       pair<pair<SimpleMatrix<T>, SimpleMatrix<T> >, SimpleMatrix<T> > SVD(const SimpleMatrix<T>& src) const;
   inline       SimpleVector<T>  zeroFix(const SimpleMatrix<T>& A, vector<pair<T, int> > fidx);
   inline       SimpleVector<T>  inner(const SimpleVector<T>& bl, const SimpleVector<T>& bu) const;
@@ -2713,18 +2713,6 @@ template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::QR() const {
 }
 
 template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::SVD(const int& cut) const {
-  if(cols() < rows()) {
-    auto work(transpose().SVD() * transpose());
-    T    Mnorm2(int(0));
-    SimpleVector<T> norm2(work.rows());
-    for(int i = 0; i < work.rows(); i ++)
-      Mnorm2 = max(Mnorm2, norm2[i] = work.row(i).dot(work.row(i)));
-    for(int i = 0; i < work.rows(); i ++) {
-      if(epsilon * Mnorm2 < norm2[i])
-        work.row(i) /= sqrt(norm2[i]);
-    }
-    return move(work);
-  }
   // N.B. A = QR, (S - lambda I)x = 0 <=> R^t Q^t U = R^-1 Q^t U Lambda
   //        <=> R^t Q^t U Lambda' = R^-1 Q^t U Lambda'^(- 1)
   //      A := R^t, B := Q^t U, C := Lambda'
@@ -3123,7 +3111,7 @@ template <typename T> static inline SimpleMatrix<T> log(const SimpleMatrix<T>& m
   for(int i = 0; i < m.rows(); i ++)
     norm2 = max(norm2, m.row(i).dot(m.row(i)));
   SimpleMatrix<T> res(m.rows(), m.cols());
-  const auto c(max(norm2, abs(m.determinant()) * T(8)));
+  const auto c(max(sqrt(norm2), abs(m.determinant()) * T(8)));
   const auto residue(SimpleMatrix<T>(m.rows(), m.cols()).I() - m / c);
         auto buf(residue);
   res.I(c);
