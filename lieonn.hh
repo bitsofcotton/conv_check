@@ -2742,11 +2742,8 @@ template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::SVD(const int& cut
       rl = max(rl, Left.row(i).dot(Left.row(i)));
     for(int i = 1; i < Right.rows(); i ++)
       rr = max(rr, Right.row(i).dot(Right.row(i)));
-    Left   /= (rl = sqrt(rl));
-    Right  /= (rr = sqrt(rr));
-    before /= rl * rr;
-          auto next(Left * Right);
-    const auto err(next - before);
+          auto next((Left /= (rl = sqrt(rl))) * (Right /= (rr = sqrt(rr))));
+    const auto err(next - (before /= rl * rr));
           auto er(err.row(0).dot(err.row(0)));
     for(int i = 1; i < err.rows(); i ++)
       er = max(er, err.row(i).dot(err.row(i)));
@@ -2952,19 +2949,12 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::inner(const Simple
         auto res(A.QR().zeroFix(A, fidx));
   const auto z(*this * res * T(int(8)));
         T    t(int(1));
-  for(int i = 0; i < z.size(); i ++) {
-    if(bl[i] * z[i] < T(int(0))) {
-      if(bu[i] * z[i] < T(int(0))) // N.B.: infeasible.
-        continue;
-      else if(z[i] != T(int(0)))
-        t = min(t, bu[i] / z[i]);
-    } else if(z[i] != T(int(0))) {
-      if(bu[i] * z[i] < T(int(0)))
-        t = min(t, bl[i] / z[i]);
-      else
-        t = min(t, min(bu[i] / z[i], bl[i] / z[i]));
-    }
-  }
+  for(int i = 0; i < z.size(); i ++)
+    if(bu[i] * z[i] < T(int(0))) // N.B.: infeasible.
+      continue;
+    else if(z[i] != T(int(0)))
+      t = bl[i] * z[i] < T(int(0)) ? min(t, bu[i] / z[i]) :
+                  min(t, min(bu[i] / z[i], bl[i] / z[i]));
   return res *= t;
 }
 
