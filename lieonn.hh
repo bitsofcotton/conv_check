@@ -2836,6 +2836,15 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::zeroFix(const Simp
 #endif
     for(int j = 0; j < this->cols(); j ++)
       this->setCol(j, this->col(j) - orth * this->col(j).dot(orth) / n2);
+    if(T(int(0)) < fidx[idx].first) {
+      const auto rfidxsz(fidx.size());
+      fidx.resize(0);
+      fidx.reserve(this->cols());
+      const auto on(projectionPt(one));
+      for(int j = 0; j < this->cols(); j ++)
+        fidx.emplace_back(make_pair(abs(on[j]), i));
+      i -= rfidxsz - fidx.size();
+    }
     i ++;
   }
   // N.B. now we have fix indexes that to be P R [x 1] * t == 0.
@@ -3301,31 +3310,28 @@ private:
   feeder f;
 };
 
-template <typename T, typename P, bool noend = false> class shrinkMatrix {
+template <typename T, typename P> class shrinkMatrix {
 public:
   inline shrinkMatrix() { ; }
   inline shrinkMatrix(P&& p, const int& len = 0) {
-    d.resize(noend ? 1 : abs(len), T(t ^= t));
+    d.resize(abs(len), T(t ^= t));
     m.resize(d.size(), T(t));
     this->p = p;
   }
   inline ~shrinkMatrix() { ; }
   inline T next(const T& in) {
-    if(noend) { d[0] += in; ++ t; }
-    else d[int(t ++) % d.size()] = in;
-    const T dsize(noend ? t : myuint(min(int(t), int(d.size()))));
+    d[(t ++) % d.size()] = in;
+    const T dsize(min(t, int(d.size())));
     auto D(d[0]);
     for(int i = 1; i < d.size(); i ++) D += d[i];
-    m[int(t) % m.size()] = noend
-      ?  p.next(D / dsize) * (dsize + T(int(1))) - D
-      : (p.next(D / dsize) *  dsize - D) / dsize + in;
+    m[t % m.size()] = p.next(D / dsize);
     auto res(m[0]);
     for(int i = 1; i < m.size(); i ++) res += m[i];
     return res /= T(int(m.size()));
   }
 private:
   P p;
-  myuint t;
+  int t;
   vector<T> d;
   vector<T> m;
 };
