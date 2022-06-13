@@ -30,7 +30,6 @@ int main(int argc, char* argv[]) {
     work[3]  = num_t(!((j & 1) && ((j >> 1) & 1)) && ((j >> 2) & 1) ? 1 : 0);
     const auto buf(makeProgramInvariant<num_t>(work));
     A.row(j) = buf.first * (r[j] = pow(abs(buf.second), ceil(- log(A.epsilon()) / num_t(int(2)) ) ));
-    std::cerr << sqrt(- log(A.epsilon())) << std::endl;
     right[j] = - (left[j]  = - exp(- sqrt(- log(A.epsilon()) )) );
   }
   const auto rr(sqrt(sqrt(sqrt(r[0] * r[1] * r[2] * r[3] * r[4] * r[5] * r[6] * r[7]))));
@@ -46,7 +45,7 @@ int main(int argc, char* argv[]) {
   for(int i = 0; i < in.size(); i ++)
     if(r[i] != num_t(0))
       in[i] *= rr / r[i];
-  std::cout << in / sqrt(in.dot(in)) << std::endl;
+  std::cout << in << in / sqrt(in.dot(in)) << std::endl;
   return 0;
 }
 
