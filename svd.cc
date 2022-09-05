@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
   SimpleMatrix<myfloat> A(std::atoi(argv[1]), std::atoi(argv[2]));
   for(int i = 0; i < A.rows(); i ++)
     for(int j = 0; j < A.cols(); j ++)
-      A(i, j) = myfloat(int(arc4random()));
+      A(i, j) = myfloat(int(arc4random())) - myfloat(int(RAND_MAX)) / myfloat(int(2));
   auto left(A.SVD() * A);
   for(int i = 0; i < left.rows(); i ++)
     left.row(i) /= sqrt(left.row(i).dot(left.row(i)));
