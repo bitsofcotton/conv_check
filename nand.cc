@@ -28,13 +28,13 @@ int main(int argc, char* argv[]) {
     work[2]  = num_t((j >> 2) & 1 ? 0 : 1);
     work[3]  = num_t(!((j & 1) && ((j >> 1) & 1)) && ((j >> 2) & 1) ? 1 : 0);
     A.row(j) = makeProgramInvariant<num_t>(work).first;
-    left[j]  = - exp(- log(A.epsilon()) / num_t(int(2)) ) * num_t(int(2));
-    right[j] = - exp(- log(A.epsilon()) / num_t(int(2)) );
+    left[j]  = - exp(- log(A.epsilon()) / num_t(int(2)) );
+    right[j] = - exp(- log(A.epsilon()) / num_t(int(4)) );
   }
   for(int j = 0; j < A.cols(); j ++)
     A(8, j) = atan(num_t(3 == j ? 1 : 0));
-  right[8] = atan(exp(sqrt(- log(A.epsilon()) )) );
-  left[8]  = atan(sqrt(exp(sqrt(- log(A.epsilon()) )) ) );
+  left[8]   = log(num_t(int(3)) / num_t(int(4)));
+  right[8]  = log(num_t(int(89)) / num_t(int(90)) );
   auto in(A * A.inner(left, right));
   std::cout << left << right << A << std::endl;
   std::cout << in << in / sqrt(in.dot(in)) << std::endl;

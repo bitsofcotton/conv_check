@@ -55,4 +55,5 @@ This method also finds minimum combination on |&lt;p'x,x''&gt;|_1.
 # Archive
 This repository is archived, so without bugreport, will no change.
 2023/04/21 make/revert ProgramInvariant algorithm changed.
+2023/04/23 nand.cc fix.
 
