@@ -27,13 +27,25 @@ So we avoid const. multiply, exchange |b_l| &lt; |b_u| condition, divide by b_u,
 
 We ignore sign on x, so they're equivalent to |A'x|==2 we also ignore ratio on x, it's the problem linearInvariant A'.
 
-To calculate linear invariant, ||P' x''||_2 / ||x''||_2 -&gt; maximum condition in |P' x''|&lt;=1 epsilon, minimize sup_k |&lt;p', x''&gt;|\_k.
-But optimal condition, they fixes some on the index |P' x'|&lt;=1 each (optimal is on the some of a vertex != 0. i.e. some of line segment.), causes ||P'_partial x''||_2 / ||x''||_2 -&gt; maximum.
-So the linear invariant condition is equivalent to the first condition, and find minimum of ||P'_partial x''||_2 / ||x''||_2 -&gt; maximim condition.
-This can be done by sort each |&lt;p',x''&gt;|, then fix them in ascendant order because fix one of the index causes orthogonalize original matrix and it's linear dependant in 2nd-norm condition.
 
-This method also finds minimum combination on |&lt;p'x,x''&gt;|_1.
-(||Px||_2^2-||Px||_1^2 == ||x||_2^2-(Sum\<p\_k,x\>)^2==||x||_2^2-Sum\<p_k,x\>\<p_l,x\>==||x'||_2^2-Sum x'\_kx'\_l) == ||x'||_2^2-||x'||_1^2, d/dt (at(x)\*bt(x))^t==(at(x)\*bt(x))^(t-1)(at'(x)\*bt(x) + at(x)\*bt'(x)), t==4 and t==2 case, ratio is also t==2 case, limit condition).
+To calculate linear invariant, -1 &lt;= Px'' &lt;= 1, so we take:
+-1 + epsilon 1 &lt; Px'' \pm epsilon 1 &lt; 1 - epsilon 1.
+
+So each loop we fix least enough on effect to |epsilon| with maximizing ||x''||,
+overall we get:
+|epsilon x\* p \pm epsilon 1(orthogonal to p)| &lt;= 1 - epsilon 1.
+
+We can configure epsilon after doing them.
+Also, the effect to epsilon on this form is minimal in abstract value (not the ratio) because we fixing orthogonal ones.
+
+So reverse path leads us to -1 &lt;= P x_0 &lt;= 1 on their x_0, this can satisfy the condition |epsilon| 1 (because first optimize gets minimal in abstract value).
+
+This method can be applied to -1 &lt;= (&lt;p_k,x&gt;)^2 &lt;= 1 conditions (if all of them are squared ones).
+
+
+If the first hypothesis fails, this is the case P is orthogonal to 1,
+with flipping the sign of some each of the original A'' matrix row can
+improve the condition, but this is not implemented.
 
 # Usage
     // if you need, please scope with namespace block, but include guard may harms.
@@ -56,4 +68,5 @@ This method also finds minimum combination on |&lt;p'x,x''&gt;|_1.
 This repository is archived, so without bugreport, will no change.
 2023/04/21 make/revert ProgramInvariant algorithm changed.
 2023/04/23 nand.cc fix.
+2023/11/01 readme large fix causes a little improve on proof. nand.cc revertProgramInvariant change.
 

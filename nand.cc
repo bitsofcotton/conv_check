@@ -37,9 +37,9 @@ int main(int argc, char* argv[]) {
   right[8]  = log(num_t(int(89)) / num_t(int(90)) );
   auto in(A * A.inner(left, right));
   std::cout << left << right << A << std::endl;
-  std::cout << in << in / sqrt(in.dot(in)) << std::endl;
-  in = revertProgramInvariant<num_t>(in);
-  std::cout << in << in / sqrt(in.dot(in)) << std::endl;
+  std::cout << in << (in /= sqrt(in.dot(in))) << std::endl;
+  for(int j = 0; j < in.size(); j ++) in[j] = revertProgramInvariant<num_t>(make_pair(in[j], num_t(int(1)) ));
+  std::cout << in << (in /= sqrt(in.dot(in))) << std::endl;
   return 0;
 }
 
